@@ -1,0 +1,1451 @@
+---
+title: "ShotCharts"
+author: "c ryan"
+date: "1/18/2018"
+output: html_document
+---
+
+```{r setup}
+#full table
+#setwd("~/Dropbox (Personal)/misc/bball_stats/ESPNshots/")
+library(ggplot2)
+library(plyr)
+#install.packages("gridExtra")
+library(gridExtra)
+
+#install.packages("gtools")
+library(gtools)
+
+# shots <- read.csv("fullshotChart.csv", sep = ",", header = F)
+# 
+# colnames(shots) <- c("shotNum","outcome","chartTeam","team","gameNum",
+#                      "gameOutcome","teamName","oppName",
+#                      "half","shooter","x","y","shotType",
+#                      "assisted","assister","gameNum")
+
+colorInterpolate <- function(val, valRange=range(val)){
+ color= c("#471460", "#434085", "#2c798d", "#34ae7f", "#a4d846", "#ffe21e")
+ appx <- approx(valRange, seq(0, 1, length.out = length(valRange)), val, yleft = 0, yright = 1)
+ cc <- colorRamp(color)(appx$y)
+ cc <- rgb2hex(floor(cc))
+ cc
+}
+
+rgb2hex <- function(x){
+ hex <- as.hexmode(x)
+ hex <- as.character(hex)
+ #   hex <- substr(hex,2,3)
+ hex <- matrix(hex, nrow = nrow(x), ncol = ncol(x))
+ hex <- apply(hex,1, function(x){paste0(x,collapse = '')})
+ hex <- paste0('#',hex)
+ hex
+}
+
+# Author : Ewen Gallic http://editerna.free.fr/wp/
+# Date : 2014-08-03
+
+# Any comments are welcome.
+
+library(grid)
+library(ggplot2)
+library(gridExtra)
+library(gtable)
+
+
+###############
+## FUNCTIONS ##
+###############
+
+# http://stackoverflow.com/questions/6862742/draw-a-circle-with-ggplot2
+# Function to create circles
+circle_fun <- function(center=c(0,0), diameter=1, npoints=500, start=0, end=2){
+  tt <- seq(start*pi, end*pi, length.out=npoints)
+  data.frame(
+    x = center[1] + diameter / 2 * cos(tt),
+    y = center[2] + diameter / 2 * sin(tt)
+  )
+}
+
+# Gives y coordinates of the opposite side
+rev_y <- function(y) 94-y
+
+# Converts inches to feet
+inches_to_feet <- function(x) x/12
+
+# Given the angle theta and the court data frame,
+# rotates the coordinates of the court by an angle theta
+rotate_court <- function(court, theta=pi/2){
+  court_r <- court
+  court_r$x <- court_r$x / 180 * pi
+  court_r$y <- court_r$y / 180 * pi
+  matrice_r <- matrix(c(cos(theta), sin(theta), -sin(theta), cos(theta)), ncol = 2)
+  coords_r <- apply(court_r[,c("x","y")], 1, function(x) x %*% matrice_r)
+  court_r$x <- coords_r[1,] ; court_r$y <- coords_r[2,]
+  court_r$x <- court_r$x * 180 / pi
+  court_r$y <- court_r$y * 180 / pi
+  return(court_r)
+}
+
+# From x and y coordinates for a line (represented by a polygon here),
+# a number of group and a short description
+# creates a data.frame for this line
+# in order to use it with ggplot2.
+new_coords <- function(x, y, group, descri){
+  new_coords_df <- data.frame(x = x, y = y)
+  new_coords_df$group <- group
+  new_coords_df$side <- 1
+  group <- group + 1
+  
+  # The same thing for the opposite side
+  new_coords_df2 <- data.frame(x = x, y = rev_y(y))
+  new_coords_df2$group <- group
+  new_coords_df2$side <- 2
+  group <<- group + 1
+  
+  # On reunit les donnees
+  new_coords_df <- rbind(new_coords_df, new_coords_df2)
+  new_coords_df$descri <- descri
+  
+  return(new_coords_df)
+}
+
+###############
+## THE COURT ##
+###############
+
+# 3 pts circle
+cercle_3pts.out <- circle_fun(center = c(25,inches_to_feet(63)), diameter = (20+inches_to_feet(9))*2)
+cercle_3pts.in <- circle_fun(center = c(25,inches_to_feet(63)), diameter = (20+inches_to_feet(7))*2)
+# Basket circle
+cercle_ce <- circle_fun(center = c(25,5+3/12), diameter = 1.5)
+# Free throw circle
+cercle_lf.out <- circle_fun(center = c(25,19), diameter = 6*2)
+cercle_lf.in <- circle_fun(center = c(25,19), diameter = (6-1/6)*2)
+# Middle circle
+cercle_mil.out <- circle_fun(center = c(25,47), diameter = 6*2)
+cercle_mil.in <- circle_fun(center = c(25,47), diameter = (6-1/6)*2)
+
+
+group <- 1 # We assign the first group, and it gets incremented with each use of new_coords()
+court <- new_coords(c(0-1/6,0-1/6,53 + 1/6,53 + 1/6), c(0 - 1/6,0,0,0 - 1/6), group = group, descri = "ligne de fond")
+court <- rbind(court, new_coords(x = c(0-1/6,0-1/6,0,0), y = c(0,47-1/12,47-1/12,0), group = group, descri = "ligne gauche"))
+court <- rbind(court, new_coords(x = c(50,50,50+1/6,50+1/6), y = c(0,47-1/12,47-1/12,0), group = group, descri = "ligne droite"))
+court <- rbind(court, new_coords(x = c(47,47,53,53), y = c(28,28+1/6,28+1/6,28), group = group, descri = "marque entraineur droite"))
+court <- rbind(court, new_coords(x = c(inches_to_feet(51),inches_to_feet(51),inches_to_feet(51)+1/6,inches_to_feet(51)+1/6), y = c(0,inches_to_feet(63),inches_to_feet(63),0), group = group, descri = "3pts bas gauche"))
+court <- rbind(court, new_coords(x = c(50-inches_to_feet(51)-1/6,50-inches_to_feet(51)-1/6,50-inches_to_feet(51),50-inches_to_feet(51)), y = c(0,inches_to_feet(63),inches_to_feet(63),0), group = group, descri = "3pts bas droit"))
+court <- rbind(court, new_coords(x = c(19,19,19+1/6,19+1/6), y = c(0,19,19,0), group = group, descri = "LF bas gauche"))
+court <- rbind(court, new_coords(x = c(31-1/6,31-1/6,31,31), y = c(0,19,19,0), group = group, descri = "LF bas droit"))
+court <- rbind(court, new_coords(x = c(19,19,31,31), y = c(19-1/6,19,19,19-1/6), group = group, descri = "LF tireur"))
+court <- rbind(court, new_coords(x = c(22, 22, 28, 28), y = c(4-1/6,4,4,4-1/6), group = group, descri = "planche"))
+court <- rbind(court, new_coords(x = c(cercle_3pts.out[1:250,"x"], rev(cercle_3pts.in[1:250,"x"])),
+                                y = c(cercle_3pts.out[1:250,"y"], rev(cercle_3pts.in[1:250,"y"])), group = group, descri = "cercle 3pts"))
+court <- rbind(court, new_coords(x = c(cercle_lf.out[1:250,"x"], rev(cercle_lf.in[1:250,"x"])),
+                                y = c(cercle_lf.out[1:250,"y"], rev(cercle_lf.in[1:250,"y"])), group = group, descri = "cercle LF haut"))
+court <- rbind(court, new_coords(x = c(19-0.5,19-0.5,19,19), y = c(7,8,8,7), group = group, descri = "marque 1 LF gauche"))
+court <- rbind(court, new_coords(x = c(19-0.5,19-0.5,19,19), y = c(11,11+inches_to_feet(2),11+inches_to_feet(2),11), group = group, descri = "marque 2 LF gauche"))
+court <- rbind(court, new_coords(x = c(19-0.5,19-0.5,19,19), y = c(14+inches_to_feet(2),14+inches_to_feet(4),14+inches_to_feet(2),14+inches_to_feet(2)), group = group, descri = "marque 3 LF gauche"))
+court <- rbind(court, new_coords(x = c(19-0.5,19-0.5,19,19), y = c(17+inches_to_feet(4),17+inches_to_feet(6),17+inches_to_feet(6),17+inches_to_feet(4)), group = group, descri = "marque 4 LF gauche"))
+court <- rbind(court, new_coords(x = c(31,31,31+0.5,31+0.5), y = c(7,8,8,7), group = group, descri = "marque 1 LF droite"))
+court <- rbind(court, new_coords(x = c(31,31,31+0.5,31+0.5), y = c(11,11+inches_to_feet(2),11+inches_to_feet(2),11), group = group, descri = "marque 2 LF droite"))
+court <- rbind(court, new_coords(x = c(31,31,31+0.5,31+0.5), y = c(14+inches_to_feet(2),14+inches_to_feet(4),14+inches_to_feet(4),14+inches_to_feet(2)), group = group, descri = "marque 3 LF droite"))
+court <- rbind(court, new_coords(x = c(0-1/6,0-1/6,50+1/6,50+1/6), y = c(94/2-1/12,94/2, 94/2, 94/2-1/12), group = group, descri = "ligne mediane"))
+court <- rbind(court, new_coords(x = c(31,31,31+0.5,31+0.5), y = c(17+inches_to_feet(4),17+inches_to_feet(6),17+inches_to_feet(6),17+inches_to_feet(4)), group = group, descri = "marque 4 LF droite"))
+court <- rbind(court, new_coords(x = c(cercle_mil.out[250:500,"x"], rev(cercle_mil.in[250:500,"x"])),
+                                y = c(cercle_mil.out[250:500,"y"], rev(cercle_mil.in[250:500,"y"])), group = group, descri = "cercle milieu grand"))
+court <- rbind(court, new_coords(x = cercle_ce[,"x"], y = cercle_ce[,"y"], group = group, descri = "anneau"))
+
+
+###########
+## PLOTS ##
+###########
+
+# Half court
+P_half <- ggplot() + geom_polygon(data = court[court$side==1,], aes(x = x, y = y, group = group), col = "gray") +
+  coord_equal() +
+  xlim(-3,54) +
+  ylim(-3,50) +
+  scale_y_continuous(breaks = c(0, 23.5, 47)) +
+  scale_x_continuous(breaks = c(0, 12.5, 25, 37.5, 50)) +
+  xlab("") + ylab("") +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(), axis.ticks.x = element_blank(),
+        axis.ticks.y = element_blank(), axis.title = element_blank()
+  )
+#P_half
+
+setwd("~/Dropbox (Personal)/misc/bball_stats/ESPNshots/")
+
+shots <- read.csv("fullshotChart.csv", sep = ",", header = F)
+
+colnames(shots) <- c("shotNum","outcome","chartTeam","team","gameNum",
+                     "gameOutcome","teamName","oppName",
+                     "half","shooter","x","y","shotType",
+                     "assisted","assister","espnNum")
+
+
+#adjust to court size
+shots$x <- shots$x * .94
+shots$y <- shots$y * .5
+
+#sort by home/away
+shots <- shots[order(shots$chartTeam),]
+
+numShots <- dim(shots)[1]
+
+centered <- as.matrix(cbind(shots$x,shots$y)) %*% matrix(c(0,-1,1,0), ncol = 2, nrow = 2) + matrix(c(25,0),nrow = numShots, ncol = 2, byrow = T)
+
+
+centered <- centered %*% matrix(c(-1,0,0,1), ncol = 2, nrow = 2)
+
+#troublshoot
+#plot(shots$x,shots$y)
+
+home <- shots[shots$chartTeam == "home",]
+away <- shots[shots$chartTeam == "away",]
+
+#troublshoot
+#plot(home$y,home$x)
+#plot(away$y,away$x)
+
+#plot(centered[,1],centered[,2])
+
+##fixing plotting irregularity...
+centered[,1] <- ifelse(centered[,1] == -23.75,-23,centered[,1])
+
+homeCentered <- centered[shots$chartTeam == "home",]
+awayCentered <- centered[shots$chartTeam == "away",]
+
+numShotsHome <- dim(homeCentered)[1]
+
+#troublshoot
+#plot(homeCentered[,1],homeCentered[,2])
+
+homeCenteredFlipped <- homeCentered %*% matrix(c(-1,0,0,-1), ncol = 2, nrow = 2) + matrix(c(0,94),nrow = numShotsHome, ncol = 2, byrow = T)
+
+#troublshoot
+#plot(awayCentered[,1],awayCentered[,2])
+
+#plot(homeCenteredFlipped[,1],homeCenteredFlipped[,2])
+
+#plot(homeCenteredFlipped[,1],homeCenteredFlipped[,2], ylim = c(0,47), xlim = c(-25,25))
+#points(awayCentered[,1],awayCentered[,2], pch = 9)
+
+shotsTrans <- cbind(shots,rbind(awayCentered,homeCenteredFlipped))
+
+colnames(shotsTrans) <- c("shotNum","outcome","chartTeam","team","gameNum",
+                     "gameOutcome","teamName","oppName",
+                     "half","shooter","x","y","shotType",
+                     "assisted","assister","espnNum",
+                     "baseline","depth")
+
+#eliminate backcourt heaves
+shotsTrans <- shotsTrans[shotsTrans$depth < 47,]
+#newline standardize depths
+shotsTrans$depth <- round(shotsTrans$depth, digits = 0 )
+
+#shift for court lines
+#shotsTrans$baseline <- shotsTrans$baseline + 25
+shotsTrans$baseline <- round(shotsTrans$baseline + 25, digits = 0 )
+
+#shot distance
+shotsTrans$dist <- round(sqrt((shotsTrans$baseline - 25)^2 + abs(shotsTrans$depth - 5.25)^2), digits = 1)
+shotsTrans$binary <- as.numeric(shotsTrans$outcome == "made")
+
+#add FG type and points scored
+shotsTrans$FGtypedist <- ifelse(shotsTrans$dist > 20.75,3,2)
+shotsTrans$FGtype <- ifelse(shotsTrans$shotType == "Three",3,2)
+shotsTrans$points <- shotsTrans$FGtype * shotsTrans$binary
+
+#add shotLocation (shotLoc)
+#swapping for 0-5,5-10,10-15,15-20.75
+#matches NBA site
+#if the scorer called it a 3 it is a 3
+#otherwise, if it is within 5' mark it 0-5ft
+shotsTrans$shotLoc <- ifelse(shotsTrans$shotType == "Three","Three",
+                             ifelse(shotsTrans$dist <= 5,"0-6ft",
+                                    ifelse(shotsTrans$dist > 5 & shotsTrans$dist <= 10,"6-12ft","12-20ft")))
+
+#add shot angle, where 0 degrees is directly from the left baseline
+shotsTrans$angle <- ifelse(shotsTrans$baseline >= 25, 
+                           180 + round(atan(-(shotsTrans$depth - 5.25)/(shotsTrans$baseline - 25)) * 180/pi, digits = 1),
+                           round(atan(-(shotsTrans$depth - 5.25)/(shotsTrans$baseline - 25)) * 180/pi, digits = 1))
+
+shotsTrans$angleGrp <- ifelse(shotsTrans$angle < 36, "Right",
+                              ifelse(shotsTrans$angle >= 36 & shotsTrans$angle < 72, "Right-Mid",
+                                     ifelse(shotsTrans$angle >= 72 & shotsTrans$angle <= 108, "Center",
+                                            ifelse(shotsTrans$angle > 108 & shotsTrans$angle <= 144, "Left-Mid","Left"))))
+
+shotsTrans$angleShort <- ifelse(shotsTrans$angle < 50, "Right",
+                              ifelse(shotsTrans$angle >= 50 & shotsTrans$angle <= 130, "Center","Left"))
+
+
+shotsTrans$Location <- paste0(shotsTrans$shotLoc,"_",shotsTrans$angleGrp)
+shotsTrans$LocShort <- paste0(shotsTrans$shotLoc,"_",shotsTrans$angleShort)
+
+#final shot groups...
+#limit 6-12ft to 3 groups?
+shotsTrans$shotQuadrant <- ifelse(shotsTrans$shotLoc == "0-6ft","AtRim",
+                                  ifelse(shotsTrans$shotLoc == "6-12ft",shotsTrans$LocShort,shotsTrans$Location))
+#shot percentage by zone
+shotsTrans$zoneFGPer <- 0
+
+for (zone in sort(unique(shotsTrans$shotQuadrant))) {
+  print(zone)
+  print(sum(shotsTrans$shotQuadrant == zone & shotsTrans$outcome == "made")/sum(shotsTrans$shotQuadrant == zone))
+  zonePercent <- sum(shotsTrans$shotQuadrant == zone & shotsTrans$outcome == "made")/sum(shotsTrans$shotQuadrant == zone)
+  shotsTrans$zoneFGPer <- ifelse(shotsTrans$shotQuadrant == zone,zonePercent,shotsTrans$zoneFGPer)
+}
+
+#shot percentage by location
+shotsTrans$BbyD <- paste0(shotsTrans$baseline,"_",shotsTrans$depth)
+shotsTrans$BbyDFGPer <- 0
+
+for (spot in sort(unique(shotsTrans$BbyD))) {
+  #print(sum(shotsTrans$BbyD == spot & shotsTrans$outcome == "made")/sum(shotsTrans$BbyD == spot))
+  BbyDPercent <- sum(shotsTrans$BbyD == spot & shotsTrans$outcome == "made")/sum(shotsTrans$BbyD == spot)
+  shotsTrans$BbyDFGPer <- ifelse(shotsTrans$BbyD == spot,BbyDPercent,shotsTrans$BbyDFGPer)
+}
+
+#a few checks
+
+ggplot(shotsTrans, aes( x = baseline, y = depth, col = 100*zoneFGPer)) + geom_polygon(data = court[court$side==1,], aes(x = x, y = y, group = group), col = "gray") + geom_point(alpha = 0.2, size = 1.5) + coord_equal() +  scale_colour_gradientn(colors = colorInterpolate(1:6,1:6)[6:1]) +
+  xlim(-3,54) +
+  ylim(-3,50) +
+  scale_y_continuous(breaks = c(0, 23.5, 47)) +
+  scale_x_continuous(breaks = c(0, 12.5, 25, 37.5, 50)) +
+  xlab("") + ylab("") +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(), axis.ticks.x = element_blank(),
+        axis.ticks.y = element_blank(), axis.title = element_blank()
+  )
+
+ggplot(shotsTrans, aes( x = baseline, y = depth, col = 100*BbyDFGPer)) + geom_polygon(data = court[court$side==1,], aes(x = x, y = y, group = group), col = "gray") + geom_point(alpha = 0.05, size = 2.4, pch = 15) + coord_equal() +  scale_colour_gradientn(colors = colorInterpolate(1:6,1:6)) +
+  xlim(-3,54) +
+  ylim(-3,50) +
+  scale_y_continuous(breaks = c(0, 23.5, 47)) +
+  scale_x_continuous(breaks = c(0, 12.5, 25, 37.5, 50)) +
+  xlab("") + ylab("") +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(), axis.ticks.x = element_blank(),
+        axis.ticks.y = element_blank(), axis.title = element_blank()
+  )
+
+ggplot(shotsTrans, aes(x = baseline, y = depth)) + geom_polygon(data = court[court$side==1,], aes(x = x, y = y, group = group), col = "gray") + geom_point(alpha = 0.02, size = 2.4, pch = 15) + coord_equal() +
+  xlim(-3,54) +
+  ylim(-3,50) +
+  scale_y_continuous(breaks = c(0, 23.5, 47)) +
+  scale_x_continuous(breaks = c(0, 12.5, 25, 37.5, 50)) +
+  xlab("") + ylab("") +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(), axis.ticks.x = element_blank(),
+        axis.ticks.y = element_blank(), axis.title = element_blank()
+  )
+
+
+maxShots <- sort(table(shotsTrans$BbyD),decreasing=TRUE)[1]
+n <- max(shotsTrans$baseline)*max(shotsTrans$depth)
+count <- 1
+kgPlot <- data.frame(1:n)
+#shots <- matrix(0,max(shotsTrans$baseline),max(shotsTrans$depth))
+#percents <- matrix(0,max(shotsTrans$baseline),max(shotsTrans$depth))
+
+for (b in 1:max(shotsTrans$baseline)) {
+  for (d in 1:max(shotsTrans$depth)) {
+    kgPlot$b[count] <- b
+    kgPlot$d[count] <- d
+    nShots <- sum(shotsTrans$baseline == b & shotsTrans$depth == d)
+    kgPlot$shots[count] <- ifelse(nShots == 0, NaN, nShots)
+    kgPlot$percent[count] <- sum(shotsTrans$baseline == b & shotsTrans$depth == d & shotsTrans$outcome == "made") / kgPlot$shots[count]
+    count <- count + 1
+  }
+}
+
+ggplot(kgPlot, aes(x = b, y = d)) + geom_polygon(data = court[court$side==1,], aes(x = x, y = y, group = group), col = "gray") + geom_point(aes(col = percent, size = log(shots)), na.rm = TRUE, pch = 15) + coord_equal() + scale_size_area(max_size = 2.5) + scale_colour_gradientn(colors = colorInterpolate(1:6,1:6)) +
+  xlim(-3,54) +
+  ylim(-3,50) +
+  scale_y_continuous(breaks = c(0, 23.5, 47)) +
+  scale_x_continuous(breaks = c(0, 12.5, 25, 37.5, 50)) +
+  xlab("") + ylab("") +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(), axis.ticks.x = element_blank(),
+        axis.ticks.y = element_blank(), axis.title = element_blank()
+  )
+
+#ggsave("current_shotDB.png")
+
+lastGame <- function(teamPlot) {
+
+#teamPlot <- "north-carolina-tar-heels"
+
+teamSubset <- subset(shotsTrans, teamName %in% teamPlot)
+
+lastGame <- max(teamSubset$gameNum)
+
+teamSubset$teamZoneFGPer <- 0
+teamSubset$teamZoneFGDiff <- 0
+
+for (zone in sort(unique(teamSubset$shotQuadrant))) {
+  teamzonePer <- sum(teamSubset$shotQuadrant == zone & teamSubset$outcome == "made") / 
+    sum(teamSubset$shotQuadrant == zone)
+  teamzonePerDiff <- sum(teamSubset$shotQuadrant == zone & teamSubset$outcome == "made") / 
+    sum(teamSubset$shotQuadrant == zone) - 
+    sum(shotsTrans$shotQuadrant == zone & shotsTrans$outcome == "made")/sum(shotsTrans$shotQuadrant == zone)
+  
+  teamzonePerDiff <- ifelse(teamzonePerDiff < -.2, -.2,
+                               ifelse(teamzonePerDiff > .2, .2, teamzonePerDiff))
+  
+  teamSubset$teamZoneFGPer <- ifelse(teamSubset$shotQuadrant == zone, teamzonePer, teamSubset$teamZoneFGPer)
+  teamSubset$teamZoneFGDiff <- ifelse(teamSubset$shotQuadrant == zone, teamzonePerDiff, teamSubset$teamZoneFGDiff)
+}
+
+#performance in last game
+teamSubset$lgZoneFGPer <- 0
+teamSubset$lgZoneFGDiff <- 0
+
+#how many points from FG?
+expPtsTot <- 0
+for (zone in sort(unique(subset(teamSubset, gameNum %in% lastGame)$shotQuadrant))) {
+  shotsTaken <- sum(teamSubset$shotQuadrant == zone & teamSubset$gameNum == lastGame)
+  quadPercent <- sum(teamSubset$shotQuadrant == zone & teamSubset$outcome == "made") / sum(teamSubset$shotQuadrant == zone)
+  expPts <- ifelse(grepl("Three", zone), 3 * shotsTaken * quadPercent, 2 * shotsTaken * quadPercent)
+  expPtsTot <- expPts + expPtsTot
+}
+
+#estimate FTs from missing shots, assume all teams shoot 70%
+estFTAs <- max(subset(teamSubset, gameNum %in% lastGame)$shotNum) - length(subset(teamSubset, gameNum %in% lastGame)$shotNum)
+
+expPtsTot <- estFTAs * .7 + expPtsTot
+
+#print(expPtsTot)
+
+#last game's shots by distance
+for (zone in sort(unique(subset(teamSubset, gameNum %in% lastGame)$shotLoc))) {
+  lgzonePer <- sum(teamSubset$shotLoc == zone & teamSubset$outcome == "made" & teamSubset$gameNum == lastGame) / 
+    sum(teamSubset$shotLoc == zone & teamSubset$gameNum == lastGame)
+  lgzonePerDiff <- lgzonePer - sum(teamSubset$shotLoc == zone & teamSubset$outcome == "made") / 
+    sum(teamSubset$shotLoc == zone)
+  
+  lgzonePerDiff <- ifelse(lgzonePerDiff < -.2, -.2,
+                               ifelse(lgzonePerDiff > .2, .2, lgzonePerDiff))
+  
+  teamSubset$lgZoneFGPer <- ifelse(teamSubset$shotLoc == zone, lgzonePer, teamSubset$lgZoneFGPer)
+  teamSubset$lgZoneFGDiff <- ifelse(teamSubset$shotLoc == zone, lgzonePerDiff, teamSubset$lgZoneFGDiff)
+}
+
+##newer team shot chart
+
+maxShots <- sort(table(teamSubset$BbyD),decreasing=TRUE)[1]
+n <- max(teamSubset$baseline)*max(teamSubset$depth)
+count <- 1
+kgPlot <- NULL
+kgPlot <- data.frame(1:n)
+
+for (b in 1:max(teamSubset$baseline)) {
+  for (d in 1:max(teamSubset$depth)) {
+    kgPlot$b[count] <- b
+    kgPlot$d[count] <- d
+    nShots <- sum(teamSubset$baseline == b & teamSubset$depth == d)
+    kgPlot$shots[count] <- ifelse(nShots == 0, NaN, nShots)
+    kgPlot$percent[count] <- sum(teamSubset$baseline == b & teamSubset$depth == d & teamSubset$outcome == "made") / kgPlot$shots[count]
+    kgPlot$zonePer[count] <- subset(teamSubset, baseline %in% b & depth %in% d)$teamZoneFGPer[1]
+    kgPlot$zoneDiff[count] <- subset(teamSubset, baseline %in% b & depth %in% d)$teamZoneFGDiff[1]
+    count <- count + 1
+  }
+}
+
+
+
+teamSeason <- ggplot(kgPlot, aes(x = b, y = d)) + geom_polygon(data = court[court$side==1,], aes(x = x, y = y, group = group), col = "gray50") + geom_point(aes(col = 100*zoneDiff, size = shots), na.rm = TRUE, pch = 15) + coord_equal() + scale_size_area(max_size = 2.5) + scale_colour_gradientn(colors = colorInterpolate(1:6,1:6), limits=c(-20,20)) +
+ ggtitle(paste0(teamPlot," season performance")) +
+xlim(-3,54) +
+ylim(-3,50) +
+scale_y_continuous(breaks = c(0, 23.5, 47)) +
+scale_x_continuous(breaks = c(0, 12.5, 25, 37.5, 50)) +
+xlab("") + ylab("") +
+theme(axis.text.x = element_blank(),
+      axis.text.y = element_blank(), axis.ticks.x = element_blank(),
+      axis.ticks.y = element_blank(), axis.title = element_blank()
+) + theme(panel.background = element_rect(fill = "gray70", colour = "gray70"),
+          panel.grid.major = element_line(size = 0.4, linetype = 'solid', colour = "gray80"), 
+          panel.grid.minor = element_line(size = 0.2, linetype = 'solid', colour = "gray80"))
+
+
+
+#shots in last game
+teamLGame <- ggplot(subset(teamSubset, gameNum %in% lastGame), aes( x = baseline, y = depth, col = 100*lgZoneFGDiff)) + geom_polygon(data = court[court$side==1,], aes(x = x, y = y, group = group), col = "gray") + geom_jitter(aes(shape = outcome), alpha = 1, size = 4) + coord_equal() + scale_colour_gradientn(colors = colorInterpolate(1:6,1:6), limits=c(-20,20)) + scale_shape_manual(values=c(16, 21)) +
+  ggtitle(paste0(teamPlot," vs ",subset(teamSubset, gameNum %in% lastGame)$oppName[1]), subtitle = paste0("Single Game Expected Points = ",round(expPtsTot, digits = 1))) +
+  xlim(-3,54) +
+  ylim(-3,50) +
+  scale_y_continuous(breaks = c(0, 23.5, 47)) +
+  scale_x_continuous(breaks = c(0, 12.5, 25, 37.5, 50)) +
+  xlab("") + ylab("") +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(), axis.ticks.x = element_blank(),
+        axis.ticks.y = element_blank(), axis.title = element_blank()
+  )
+
+###opponent plot###
+oppPlot <- teamPlot
+
+teamPlot <- subset(teamSubset, gameNum %in% lastGame)$oppName[1]
+teamSubset <- subset(shotsTrans, teamName %in% teamPlot)
+lastGame <- max(subset(teamSubset, oppName %in% oppPlot)$gameNum)
+
+teamSubset$teamZoneFGPer <- 0
+teamSubset$teamZoneFGDiff <- 0
+
+for (zone in sort(unique(teamSubset$shotQuadrant))) {
+  #print(zone)
+  teamzonePer <- sum(teamSubset$shotQuadrant == zone & teamSubset$outcome == "made") / 
+    sum(teamSubset$shotQuadrant == zone)
+  teamzonePerDiff <- sum(teamSubset$shotQuadrant == zone & teamSubset$outcome == "made") / 
+    sum(teamSubset$shotQuadrant == zone) - 
+    sum(shotsTrans$shotQuadrant == zone & shotsTrans$outcome == "made")/sum(shotsTrans$shotQuadrant == zone)
+  
+  teamzonePerDiff <- ifelse(teamzonePerDiff < -.2, -.2,
+                               ifelse(teamzonePerDiff > .2, .2, teamzonePerDiff))
+  
+  teamSubset$teamZoneFGPer <- ifelse(teamSubset$shotQuadrant == zone, teamzonePer, teamSubset$teamZoneFGPer)
+  teamSubset$teamZoneFGDiff <- ifelse(teamSubset$shotQuadrant == zone, teamzonePerDiff, teamSubset$teamZoneFGDiff)
+}
+
+#performance in last game
+teamSubset$lgZoneFGPer <- 0
+teamSubset$lgZoneFGDiff <- 0
+
+#how many points from FG?
+expPtsTot <- 0
+for (zone in sort(unique(subset(teamSubset, gameNum %in% lastGame)$shotQuadrant))) {
+  shotsTaken <- sum(teamSubset$shotQuadrant == zone & teamSubset$gameNum == lastGame)
+  quadPercent <- sum(teamSubset$shotQuadrant == zone & teamSubset$outcome == "made") / sum(teamSubset$shotQuadrant == zone)
+  expPts <- ifelse(grepl("Three", zone), 3 * shotsTaken * quadPercent, 2 * shotsTaken * quadPercent)
+  expPtsTot <- expPts + expPtsTot
+}
+
+#estimate FTs from missing shots, assume all teams shoot 70%
+estFTAs <- max(subset(teamSubset, gameNum %in% lastGame)$shotNum) - length(subset(teamSubset, gameNum %in% lastGame)$shotNum)
+
+expPtsTot <- estFTAs * .7 + expPtsTot
+
+#print(expPtsTot)
+
+#last game's shots by distance
+for (zone in sort(unique(subset(teamSubset, gameNum %in% lastGame)$shotLoc))) {
+  lgzonePer <- sum(teamSubset$shotLoc == zone & teamSubset$outcome == "made" & teamSubset$gameNum == lastGame) / 
+    sum(teamSubset$shotLoc == zone & teamSubset$gameNum == lastGame)
+  lgzonePerDiff <- lgzonePer - sum(teamSubset$shotLoc == zone & teamSubset$outcome == "made") / 
+    sum(teamSubset$shotLoc == zone)
+  
+  lgzonePerDiff <- ifelse(lgzonePerDiff < -.2, -.2,
+                               ifelse(lgzonePerDiff > .2, .2, lgzonePerDiff))
+  
+  teamSubset$lgZoneFGPer <- ifelse(teamSubset$shotLoc == zone, lgzonePer, teamSubset$lgZoneFGPer)
+  teamSubset$lgZoneFGDiff <- ifelse(teamSubset$shotLoc == zone, lgzonePerDiff, teamSubset$lgZoneFGDiff)
+}
+
+##newer team shot chart
+
+maxShots <- sort(table(teamSubset$BbyD),decreasing=TRUE)[1]
+n <- max(teamSubset$baseline)*max(teamSubset$depth)
+count <- 1
+kgPlot <- NULL
+kgPlot <- data.frame(1:n)
+
+for (b in 1:max(teamSubset$baseline)) {
+  for (d in 1:max(teamSubset$depth)) {
+    kgPlot$b[count] <- b
+    kgPlot$d[count] <- d
+    nShots <- sum(teamSubset$baseline == b & teamSubset$depth == d)
+    kgPlot$shots[count] <- ifelse(nShots == 0, NaN, nShots)
+    kgPlot$percent[count] <- sum(teamSubset$baseline == b & teamSubset$depth == d & teamSubset$outcome == "made") / kgPlot$shots[count]
+    kgPlot$zonePer[count] <- subset(teamSubset, baseline %in% b & depth %in% d)$teamZoneFGPer[1]
+    kgPlot$zoneDiff[count] <- subset(teamSubset, baseline %in% b & depth %in% d)$teamZoneFGDiff[1]
+    count <- count + 1
+  }
+}
+
+oppSeason <- ggplot(kgPlot, aes(x = b, y = d)) + geom_polygon(data = court[court$side==1,], aes(x = x, y = y, group = group), col = "gray50") + geom_point(aes(col = 100*zoneDiff, size = shots), na.rm = TRUE, pch = 15) + coord_equal() + scale_size_area(max_size = 2.5) + scale_colour_gradientn(colors = colorInterpolate(1:6,1:6), limits=c(-20,20)) +
+     ggtitle(paste0(teamPlot," season performance")) +
+    xlim(-3,54) +
+    ylim(-3,50) +
+    scale_y_continuous(breaks = c(0, 23.5, 47)) +
+    scale_x_continuous(breaks = c(0, 12.5, 25, 37.5, 50)) +
+    xlab("") + ylab("") +
+    theme(axis.text.x = element_blank(),
+          axis.text.y = element_blank(), axis.ticks.x = element_blank(),
+          axis.ticks.y = element_blank(), axis.title = element_blank()
+    ) + theme(panel.background = element_rect(fill = "gray70", colour = "gray70"),
+              panel.grid.major = element_line(size = 0.4, linetype = 'solid', colour = "gray80"), 
+              panel.grid.minor = element_line(size = 0.2, linetype = 'solid', colour = "gray80"))
+
+
+#shots in last game
+oppLGame <- ggplot(subset(teamSubset, gameNum %in% lastGame), aes( x = baseline, y = depth, col = 100*lgZoneFGDiff)) + geom_polygon(data = court[court$side==1,], aes(x = x, y = y, group = group), col = "gray") + geom_jitter(aes(shape = outcome), alpha = 1, size = 4) + coord_equal() + scale_colour_gradientn(colors = colorInterpolate(1:6,1:6), limits=c(-20,20)) + scale_shape_manual(values=c(16, 1)) +
+  ggtitle(paste0(teamPlot," vs ",subset(teamSubset, gameNum %in% lastGame)$oppName[1]), subtitle = paste0("Single Game Expected Points = ",round(expPtsTot, digits = 1))) +
+  xlim(-3,54) +
+  ylim(-3,50) +
+  scale_y_continuous(breaks = c(0, 23.5, 47)) +
+  scale_x_continuous(breaks = c(0, 12.5, 25, 37.5, 50)) +
+  xlab("") + ylab("") +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(), axis.ticks.x = element_blank(),
+        axis.ticks.y = element_blank(), axis.title = element_blank()
+  )
+
+grid.arrange(teamSeason, teamLGame, oppSeason, oppLGame, nrow = 2)
+
+pdf('~/Desktop/lastgame.pdf', height = 9.5, width = 9.5)
+grid.arrange(teamSeason, teamLGame, oppSeason, oppLGame, nrow = 2)
+dev.off()
+
+
+}
+
+chartShots <- function(teamPlot="north-carolina-tar-heels", chartPlayer="all", games="all", n=3, plotType="kg", ACConly="no", P6only="no", NonACCP5only="no", NonP6="no") {
+
+  ##main options
+  #which team
+  ##from input
+  #teamPlot <- "north-carolina-tar-heels"
+  teamSubset <- subset(shotsTrans, teamName %in% teamPlot)
+  #which player
+  #frominput
+  #chartPlayer <- "all"
+  #post players
+  ##games <- "all"
+  ##last N games
+  
+  if (games == "all") {
+    games <- sort(unique(teamSubset$gameNum))
+  } else {
+    games <- (max(teamSubset$gameNum) - n + 1):max(teamSubset$gameNum)
+  }
+  
+  if (chartPlayer == "all") {
+    chartPlayer <- sort(unique(teamSubset$shooter))
+    playerSubset <- teamSubset
+  } else {
+    playerSubset <- subset(teamSubset, shooter %in% chartPlayer)
+  }
+  
+  shotChart <- subset(playerSubset, gameNum %in% games)
+  
+  #ACC only
+  #ACConly <- "yes"
+  #P6 only
+  #P6only <- "no"
+  #NonACC
+  #NonACCP5only <- "no"
+  #NonP6
+  #NonP6 <- "no"
+  
+  
+  P6list <- as.character(read.csv2("teamlistR.txt", sep = "/", header = FALSE)[,2])
+  ACClist <- P6list[1:16][-3]
+  NonACClist <- P6list[c(3,17:80)]
+  NonP6list <- unique(subset(shotsTrans, !(teamName %in% P6list))$teamName)
+  
+  #set the shooters, default whole team
+  shotChart <- subset(shotChart, shooter %in% chartPlayer)
+  
+  if ( ACConly == "yes" ) {
+    if ( dim(subset(subset(shotChart, gameNum %in% games), oppName %in% ACClist))[1] > 0 ) {
+      #set shot chart to acc only games with those players?
+      shotChart <- subset(subset(shotChart, gameNum %in% games), oppName %in% ACClist)
+    }
+  } else if (NonACCP5only == "yes") {
+    if ( dim(subset(subset(shotChart, gameNum %in% games), oppName %in% NonACClist))[1] > 0 ) {
+      #set shot chart to P6 only games with those players?
+      shotChart <- subset(subset(shotChart, gameNum %in% games), oppName %in% NonACClist)
+    }
+  } else if (P6only == "yes") {
+    if ( dim(subset(subset(shotChart, gameNum %in% games), oppName %in% P6list))[1] > 0 ) {
+      #set shot chart to P6 only games with those players?
+      shotChart <- subset(subset(shotChart, gameNum %in% games), oppName %in% P6list)
+    }
+  } else if (NonP6 == "yes") {
+    if ( dim(subset(subset(shotChart, gameNum %in% games), oppName %in% NonP6list))[1] > 0 ) {
+      #set shot chart to P6 only games with those players?
+      shotChart <- subset(subset(shotChart, gameNum %in% games), oppName %in% NonP6list)
+    }
+  }
+  
+  
+  playerSubset$teamZoneFGPer <- 0
+  playerSubset$teamZoneFGDiff <- 0
+  
+  for (zone in sort(unique(playerSubset$shotQuadrant))) {
+    #print(zone)
+    teamzonePer <- sum(playerSubset$shotQuadrant == zone & playerSubset$outcome == "made") / 
+      sum(playerSubset$shotQuadrant == zone)
+    teamzonePerDiff <- sum(playerSubset$shotQuadrant == zone & playerSubset$outcome == "made") / 
+      sum(playerSubset$shotQuadrant == zone) - 
+      sum(shotsTrans$shotQuadrant == zone & shotsTrans$outcome == "made")/sum(shotsTrans$shotQuadrant == zone)
+    
+    teamzonePerDiff <- ifelse(teamzonePerDiff < -.2, -.2,
+                                 ifelse(teamzonePerDiff > .2, .2, teamzonePerDiff))
+    
+    playerSubset$teamZoneFGPer <- ifelse(playerSubset$shotQuadrant == zone, teamzonePer, playerSubset$teamZoneFGPer)
+    playerSubset$teamZoneFGDiff <- ifelse(playerSubset$shotQuadrant == zone, teamzonePerDiff, playerSubset$teamZoneFGDiff)
+  }
+  
+  #performance in set of games
+  shotChart$lgZoneFGPer <- 0
+  shotChart$lgZoneFGDiff <- 0
+  
+  #set of game's shots by distance
+  for (zone in sort(unique(shotChart$shotLoc))) {
+    print(zone)
+    lgzonePer <- sum(shotChart$shotLoc == zone & shotChart$outcome == "made") /
+      sum(shotChart$shotLoc == zone)
+    lgzonePerDiff <- lgzonePer - sum(playerSubset$shotLoc == zone & playerSubset$outcome == "made") /
+      sum(playerSubset$shotLoc == zone)
+  
+    lgzonePerDiff <- ifelse(lgzonePerDiff < -.2, -.2,
+                                 ifelse(lgzonePerDiff > .2, .2, lgzonePerDiff))
+    print(lgzonePerDiff)
+    shotChart$lgZoneFGPer <- ifelse(shotChart$shotLoc == zone, lgzonePer, shotChart$lgZoneFGPer)
+    shotChart$lgZoneFGDiff <- ifelse(shotChart$shotLoc == zone, lgzonePerDiff, shotChart$lgZoneFGDiff)
+  }
+  
+  ##newer team shot chart
+  
+  maxShots <- sort(table(playerSubset$BbyD),decreasing=TRUE)[1]
+  n <- max(playerSubset$baseline)*max(playerSubset$depth)
+  count <- 1
+  ##kgPlot <- NULL
+  kgPlot <- data.frame(1:n)
+  #shots <- matrix(0,max(playerSubset$baseline),max(playerSubset$depth))
+  #percents <- matrix(0,max(playerSubset$baseline),max(playerSubset$depth))
+  
+  for (b in 1:max(playerSubset$baseline)) {
+    for (d in 1:max(playerSubset$depth)) {
+      kgPlot$b[count] <- b
+      kgPlot$d[count] <- d
+      nShots <- sum(playerSubset$baseline == b & playerSubset$depth == d)
+      kgPlot$shots[count] <- ifelse(nShots == 0, NaN, nShots)
+      kgPlot$percent[count] <- sum(playerSubset$baseline == b & playerSubset$depth == d & playerSubset$outcome == "made") / kgPlot$shots[count]
+      kgPlot$zonePer[count] <- subset(playerSubset, baseline %in% b & depth %in% d)$teamZoneFGPer[1]
+      kgPlot$zoneDiff[count] <- subset(playerSubset, baseline %in% b & depth %in% d)$teamZoneFGDiff[1]
+      count <- count + 1
+    }
+  }
+  
+
+  if (plotType == "kg") {
+     ggplot(kgPlot, aes(x = b, y = d)) + geom_polygon(data = court[court$side==1,], aes(x = x, y = y, group = group), col = "gray50") + geom_point(aes(col = 100*zoneDiff, size = shots), pch = 15, na.rm = TRUE) + coord_equal() + scale_size_area(max_size = 2.5) + scale_colour_gradientn(colors = colorInterpolate(1:6,1:6), limits=c(-20,20)) +
+       ggtitle(paste0(teamPlot," season performance"), 
+              subtitle = paste0("Player(s): ",paste(shQuote(chartPlayer), collapse=", "))) +
+      xlim(-3,54) +
+      ylim(-3,50) +
+      scale_y_continuous(breaks = c(0, 23.5, 47)) +
+      scale_x_continuous(breaks = c(0, 12.5, 25, 37.5, 50)) +
+      xlab("") + ylab("") +
+      theme(axis.text.x = element_blank(),
+            axis.text.y = element_blank(), axis.ticks.x = element_blank(),
+            axis.ticks.y = element_blank(), axis.title = element_blank()
+      ) + theme(panel.background = element_rect(fill = "gray70", colour = "gray70"),
+                panel.grid.major = element_line(size = 0.4, linetype = 'solid', colour = "gray80"), 
+                panel.grid.minor = element_line(size = 0.2, linetype = 'solid', colour = "gray80"))
+  } else {
+   #shots in set of games
+  ggplot(shotChart, aes( x = baseline, y = depth, col = 100*lgZoneFGDiff)) + geom_polygon(data = court[court$side==1,], aes(x = x, y = y, group = group), col = "gray") + geom_jitter(aes(shape = outcome), alpha = 1, size = 4) + coord_equal() + scale_colour_gradientn(colors = colorInterpolate(1:6,1:6), limits=c(-20,20)) + scale_shape_manual(values=c(16, 21)) +
+    ggtitle(paste0(teamPlot), subtitle = paste0("Player(s): ",paste(shQuote(chartPlayer), collapse=", "),"    ","Game(s): ",paste(shQuote(sort(unique(shotChart$gameNum))), collapse=", "))) +
+    xlim(-3,54) +
+    ylim(-3,50) +
+    scale_y_continuous(breaks = c(0, 23.5, 47)) +
+    scale_x_continuous(breaks = c(0, 12.5, 25, 37.5, 50)) +
+    xlab("") + ylab("") +
+    theme(axis.text.x = element_blank(),
+          axis.text.y = element_blank(), axis.ticks.x = element_blank(),
+          axis.ticks.y = element_blank(), axis.title = element_blank()
+    )
+  }
+
+}
+
+```
+
+
+```{r common plots}
+lastGame("north-carolina-tar-heels")
+lastGame("duke-blue-devils")
+#lastGame("nc-state-wolfpack")
+lastGame("virginia-cavaliers")
+lastGame("kansas-jayhawks")
+
+chartShots(teamPlot = "north-carolina-tar-heels", plotType = "kg", games = "all")
+ggsave("plots/unc_season_4games.png")
+chartShots(teamPlot = "north-carolina-tar-heels", chartPlayer = "NassirLittle", plotType = "kg", games = "all")
+ggsave("plots/nas_kg_5games.png")
+chartShots(teamPlot = "north-carolina-tar-heels", chartPlayer = "NassirLittle", plotType = "shot", games = "all")
+ggsave("plots/nas_shot_5games.png")
+
+chartShots(teamPlot = "duke-blue-devils", plotType = "kg", games = "all")
+ggsave("plots/duke_kg_mauifinal.png")
+
+chartShots(teamPlot = "gonzaga-bulldogs", plotType = "kg", games = "all")
+ggsave("plots/zags_kg_mauifinal.png")
+
+
+chartShots(teamPlot = "north-carolina-tar-heels", plotType = "kg", games = "all")
+ggsave("plots/unc_LVI.png")
+chartShots(teamPlot = "texas-longhorns", plotType = "kg", games = "all")
+ggsave("plots/tex_LVI.png")
+chartShots(teamPlot = "michigan-state-spartans", plotType = "kg", games = "all")
+ggsave("plots/msu_LVI.png")
+chartShots(teamPlot = "ucla-bruins", plotType = "kg", games = "all")
+ggsave("plots/ucla_LVI.png")
+
+
+
+
+
+
+chartShots(teamPlot = "duke-blue-devils", chartPlayer = "CamReddish", plotType = "kg", games = "all")
+ggsave("plots/red_kg_4games.png")
+chartShots(teamPlot = "duke-blue-devils", chartPlayer = "ZionWilliamson", plotType = "kg", games = "all")
+ggsave("plots/zion_kg_4games.png")
+chartShots(teamPlot = "duke-blue-devils", chartPlayer = "RJBarrett", plotType = "kg", games = "all")
+ggsave("plots/rj_kg_4games.png")
+chartShots(teamPlot = "duke-blue-devils", chartPlayer = "TreJones", plotType = "kg", games = "all")
+ggsave("plots/tre_kg_4games.png")
+
+
+
+chartShots(teamPlot = "north-carolina-tar-heels", chartPlayer = "KennyWilliams", plotType = "shot", games = "some", n = 1)
+
+chartShots(teamPlot = "kansas-jayhawks", chartPlayer = "UdokaAzubuike", plotType = "kg", games = "all")
+ggsave("plots/azubuike_kg_2games.png")
+chartShots(teamPlot = "kansas-jayhawks", chartPlayer = "UdokaAzubuike", plotType = "shot", games = "all")
+ggsave("plots/azubuike_shot_2games.png")
+
+chartShots(teamPlot = "north-carolina-tar-heels", chartPlayer = "GarrisonBrooks", plotType = "kg", games = "all")
+chartShots(teamPlot = "north-carolina-tar-heels", chartPlayer = "GarrisonBrooks", plotType = "shot", games = "all")
+
+
+ggplot(subset(shotsTrans, shooter == "UdokaAzubuike" | shooter == "GarrisonBrooks")) +
+  geom_point(aes(x = dist, y = points, col = shooter))
+
+
+ggplot(subset(subset(shotsTrans, dist < 10), shooter == "UdokaAzubuike" | shooter == "GarrisonBrooks" | shooter == "EricPaschall")[-26,], aes(x = dist, y = points/2, col = shooter)) +
+  geom_point() +
+  geom_smooth(method = "glm", 
+    method.args = list(family = "binomial"), 
+    se = FALSE) 
+ggsave("plots/azubuike_byDist_wComps.png")
+
+
+ggplot(subset(shotsTrans, shooter == "UdokaAzubuike"), aes(x = dist, y = points/2, col = shooter)) +
+  geom_point() +
+  geom_smooth(method = "glm", 
+    method.args = list(family = "binomial"), 
+    se = FALSE) 
+ggsave("plots/azubuike_byDist.png")
+
+ggplot(subset(shotsTrans, shooter == "UdokaAzubuike")[-6,], aes(x = dist, y = points/2, col = shooter)) +
+  geom_point() +
+  geom_smooth(method = "glm", 
+    method.args = list(family = "binomial"), 
+    se = FALSE) 
+
+chartShots(teamPlot = "north-carolina-tar-heels", chartPlayer = "LukeMaye", plotType = "kg", games = "all")
+ggsave("plots/luke_kg_5games.png")
+
+chartShots(teamPlot = "north-carolina-tar-heels", chartPlayer = "CobyWhite", plotType = "shot", games = "some", n = 1)
+ggsave("plots/coby_shot_texas.png")
+chartShots(teamPlot = "north-carolina-tar-heels", chartPlayer = "CobyWhite", plotType = "kg", games = "all")
+ggsave("plots/coby_kg_6games.png")
+
+
+chartShots(teamPlot = "north-carolina-tar-heels", chartPlayer = "SeventhWoods", plotType = "kg", games = "all")
+ggsave("plots/sev_kg_4games.png")
+chartShots(teamPlot = "north-carolina-tar-heels", chartPlayer = "SeventhWoods", plotType = "shot", games = "all")
+
+```
+
+```{r plot shots by criteria}
+
+#reducedShots <- subset(subset(subset(subset(shotsTrans, shooter == "LukeMaye" | shooter == "NassirLittle"),dist > 10),outcome == "made"), teamName == "north-carolina-tar-heels")
+#reducedShots <- subset(subset(shotsTrans, assisted == "Assist"), assister == "TreJones" | assister == "RJBarrett")
+
+reducedShots <- subset(subset(shotsTrans, teamName == "gonzaga-bulldogs"), oppName == "duke-blue-devils")
+
+reducedShots$halfText <- ifelse(reducedShots$half == 1, "first", "second")
+
+ggplot(reducedShots, aes( x = baseline, y = depth)) + 
+  #geom_point(aes(x=25, y=5.25), col = "gray", size = 8) + 
+  ylim(0,40)  + xlim(0,50) + 
+  geom_jitter(aes(col = halfText, shape = outcome), size = 5, width = 1.5, height = 1.5, alpha = .8) +
+  #geom_point(aes(col = shooter), size = 5, alpha = 0.7) +
+  geom_polygon(data = court[court$side==1,], aes(x = x, y = y, group = group), col = "gray") +
+  coord_equal() +
+  xlim(-3,54) +
+  ylim(-3,50) +
+  scale_y_continuous(breaks = c(0, 23.5, 47)) +
+  scale_x_continuous(breaks = c(0, 12.5, 25, 37.5, 50)) +
+  xlab("") + ylab("") +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(), axis.ticks.x = element_blank(),
+        axis.ticks.y = element_blank(), axis.title = element_blank()
+  ) + scale_shape_manual(values=c(16, 88)) + ggtitle("Gonzaga v. Duke, Zags Shots by Half")
+
+ggsave("plots/Gonzaga_Bolden_effect.png")
+
+
+```
+
+
+```{r dist by criteria}
+
+
+
+
+dukeAssists <- subset(shotsTrans, assister == "RJBarrett" | assister == "TreJones")
+
+dukeAssists$assisterBinary <- ifelse(dukeAssists$assister == "RJBarrett", 1, 0)
+
+
+ggplot(dukeAssists, aes(x = dist, y = assisterBinary)) +
+  geom_point(aes(x = dist, y = assisterBinary, col = assister)) +
+  geom_smooth(method = "glm", 
+    method.args = list(family = "binomial"), 
+    se = FALSE) 
+
+median(subset(dukeAssists, assister == "RJBarrett")$dist)
+median(subset(dukeAssists, assister == "TreJones")$dist)
+
+ggplot(dukeAssists, aes( x = baseline, y = depth)) + 
+  #geom_point(aes(x=25, y=5.25), col = "gray", size = 8) + 
+  ylim(0,40)  + xlim(0,50) + 
+  geom_jitter(aes(col = assister), size = 3, width = 1, height = 1, alpha = 0.8) +
+  #geom_point(aes(col = shooter), size = 5, alpha = 0.7) +
+  geom_polygon(data = court[court$side==1,], aes(x = x, y = y, group = group), col = "gray") +
+  coord_equal() +
+  xlim(-3,54) +
+  ylim(-3,50) +
+  scale_y_continuous(breaks = c(0, 23.5, 47)) +
+  scale_x_continuous(breaks = c(0, 12.5, 25, 37.5, 50)) +
+  xlab("") + ylab("") +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(), axis.ticks.x = element_blank(),
+        axis.ticks.y = element_blank(), axis.title = element_blank()
+  )
+ggsave("plots/duke_assists_chart.png")
+
+dukeAssists <- subset(dukeAssists, shooter != "RJBarrett" & shooter != "TreJones")
+
+ggplot(dukeAssists, aes(x = shooter, fill = assister)) +
+  geom_histogram(stat = "count")
+ggsave("plots/duke_assisted_shooters.png")
+
+ggplot(dukeAssists, aes(x = dist, fill = shooter)) +
+  geom_histogram(bins = 10) +
+  xlab("Hoop <-------                                                     ------> 3pt line")
+ggsave("plots/duke_assisted_buckets.png")
+
+
+dukeAssists <- subset(dukeAssists, shooter != "RJBarrett" & shooter != "TreJones" & shooter != "CamReddish")
+
+ggplot(dukeAssists, aes( x = baseline, y = depth)) + 
+  #geom_point(aes(x=25, y=5.25), col = "gray", size = 8) + 
+  ylim(0,40)  + xlim(0,50) + 
+  geom_jitter(aes(col = assister), size = 3, width = 1, height = 1, alpha = 0.8) +
+  #geom_point(aes(col = shooter), size = 5, alpha = 0.7) +
+  geom_polygon(data = court[court$side==1,], aes(x = x, y = y, group = group), col = "gray") +
+  coord_equal() +
+  xlim(-3,54) +
+  ylim(-3,50) +
+  scale_y_continuous(breaks = c(0, 23.5, 47)) +
+  scale_x_continuous(breaks = c(0, 12.5, 25, 37.5, 50)) +
+  xlab("") + ylab("") +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(), axis.ticks.x = element_blank(),
+        axis.ticks.y = element_blank(), axis.title = element_blank()
+  )
+
+
+ggplot(dukeAssists, aes(x = dist, y = assisterBinary)) +
+  geom_point(aes(x = dist, y = assisterBinary, col = assister)) +
+  geom_smooth(method = "glm", 
+    method.args = list(family = "binomial"), 
+    se = FALSE)
+  
+
+median(subset(dukeAssists, assister == "RJBarrett")$dist)
+median(subset(dukeAssists, assister == "TreJones")$dist)
+
+```
+
+
+
+
+
+```{r PCA shooters b_by_d BAD}
+
+
+###data is too granular...
+###try again with zones...
+
+#which teams?
+pcaTeams <- c("north-carolina-tar-heels","duke-blue-devils")
+#shot (per game) minimum?
+minSperG <- 3
+
+pcaShots <- subset(shotsTrans, teamName %in% pcaTeams)
+
+players <- NULL
+
+for (p in unique(pcaShots$shooter)) {
+  games <- length(unique(subset(pcaShots, shooter %in% p)$gameNum))
+  shots <- dim(subset(pcaShots, shooter %in% p))[1]
+  SperG <- shots/games
+  if (SperG > minSperG) {
+    players <- c(players,p)
+  }
+}
+
+ n <- max(pcaShots$baseline)*max(pcaShots$depth)
+#kgPCA <- data.frame(1:n)
+ kgPCA <- NULL
+pCount <- 1
+
+for (p in players) {
+  
+  playerSubset <- subset(pcaShots, shooter %in% p)
+  games <- length(unique(subset(pcaShots, shooter %in% p)$gameNum))
+  
+  maxShots <- sort(table(pcaShots$BbyD),decreasing=TRUE)[1]
+  #n <- max(pcaShots$baseline)*max(pcaShots$depth)
+  count <- 1
+  ##kgPlot <- NULL
+  kgPlot <- data.frame(1:n)
+  #shots <- matrix(0,max(playerSubset$baseline),max(playerSubset$depth))
+  #percents <- matrix(0,max(playerSubset$baseline),max(playerSubset$depth))
+
+  #for each player --
+
+  for (b in 1:max(pcaShots$baseline)) {
+      for (d in 1:max(pcaShots$depth)) {
+        kgPlot$b[count] <- b
+        kgPlot$d[count] <- d
+        nShots <- sum(playerSubset$baseline == b & playerSubset$depth == d)
+        nSperG <- nShots/games
+        #kgPlot$shots[count] <- ifelse(nShots == 0, NaN, nShots)
+        kgPlot$shots[count] <- nShots
+        kgPlot$percent[count] <- sum(playerSubset$baseline == b & playerSubset$depth == d & playerSubset$outcome == "made") / kgPlot$shots[count]
+        kgPlot$percent[count] <- ifelse(is.nan(kgPlot$percent[count]), 0, kgPlot$percent[count])
+        kgPlot$SperG[count] <- nSperG
+        #kgPlot$zonePer[count] <- subset(playerSubset, baseline %in% b & depth %in% d)$teamZoneFGPer[1]
+        #kgPlot$zoneDiff[count] <- subset(playerSubset, baseline %in% b & depth %in% d)$teamZoneFGDiff[1]
+        count <- count + 1
+      }
+  }
+  #kgPCA <-data.frame(kgPCA,kgPlot$SperG)
+  if (pCount == 1) {
+    kgPCA <- data.frame(kgPlot$SperG)
+    pCount <- pCount + 1
+  } else {
+    kgPCA <-data.frame(kgPCA,kgPlot$SperG)
+  }
+}
+
+colnames(kgPCA) <- players
+
+PCA <- prcomp(t(kgPCA))
+
+plot(PCA$x[,1:2]); text(PCA$x[,1:2], labels = colnames(kgPCA))
+
+plot(PCA$x[,2:3]); text(PCA$x[,2:3], labels = colnames(kgPCA))
+
+plot(PCA$x[,c(1,3)]); text(PCA$x[,c(1,3)], labels = colnames(kgPCA))
+
+plot(PCA$x[,c(1,4)]); text(PCA$x[,c(1,4)], labels = colnames(kgPCA))
+
+plot(PCA$x[,c(2,4)]); text(PCA$x[,c(2,4)], labels = colnames(kgPCA))
+
+plot(PCA$x[,c(3,4)]); text(PCA$x[,c(3,4)], labels = colnames(kgPCA))
+
+```
+
+```{r PCA shooters zones}
+
+###fix this one for zones
+##yep, works WAY better
+
+#which teams?
+#pcaTeams <- c("north-carolina-tar-heels","louisville-cardinals","duke-blue-devils")
+#GAME 1
+pcaTeams <- c("kansas-jayhawks","villanova-wildcats")
+#GAME 2
+#pcaTeams <- c(pcaTeams,"michigan-wolverines","loyola-(chi)-ramblers")
+#pcaTeams <- c("michigan-wolverines","loyola-(chi)-ramblers")
+#all teams
+#pcaTeams <- unique(shotsTrans$teamName)
+#pcaTeams <- ACClist
+#min games
+minGames <- 2
+#shot (per game) minimum?
+minSperG <- 4
+
+pcaShots <- subset(shotsTrans, teamName %in% pcaTeams)
+
+players <- NULL
+
+for (p in unique(pcaShots$shooter)) {
+  games <- length(unique(subset(pcaShots, shooter %in% p)$gameNum))
+  shots <- dim(subset(pcaShots, shooter %in% p))[1]
+  SperG <- shots/games
+  if (SperG > minSperG & games > minGames) {
+    players <- c(players,p)
+  }
+}
+
+ #n <- max(pcaShots$baseline)*max(pcaShots$depth)
+n <- length(unique(pcaShots$shotQuadrant))
+#kgPCA <- data.frame(1:n)
+ kgPCA <- NULL
+pCount <- 1
+ShotsperGame <- 1:length(players)
+sCount <- 1
+
+for (p in players) {
+  
+  playerSubset <- subset(pcaShots, shooter %in% p)
+  games <- length(unique(subset(pcaShots, shooter %in% p)$gameNum))
+  
+  maxShots <- sort(table(pcaShots$BbyD),decreasing=TRUE)[1]
+  #n <- max(pcaShots$baseline)*max(pcaShots$depth)
+  count <- 1
+  ##kgPlot <- NULL
+  kgPlot <- data.frame(1:n)
+  #shots <- matrix(0,max(playerSubset$baseline),max(playerSubset$depth))
+  #percents <- matrix(0,max(playerSubset$baseline),max(playerSubset$depth))
+
+  #for each player --
+
+  for (b in unique(pcaShots$shotQuadrant)) {
+        kgPlot$zone[count] <- b
+        nShots <- sum(playerSubset$shotQuadrant == b)
+        nSperG <- nShots/games
+        #kgPlot$shots[count] <- ifelse(nShots == 0, NaN, nShots)
+        kgPlot$shots[count] <- nShots
+        kgPlot$percent[count] <- sum(playerSubset$shotQuadrant == b & playerSubset$outcome == "made") / kgPlot$shots[count]
+        kgPlot$percent[count] <- ifelse(is.nan(kgPlot$percent[count]), 0, kgPlot$percent[count])
+        kgPlot$SperG[count] <- nSperG
+        count <- count + 1
+  }
+  
+  ShotsperGame[sCount] <- sum(kgPlot$SperG)
+  sCount <- sCount + 1
+  
+  #try unweighting total shots
+  kgPlot$SperG <- kgPlot$SperG/sum(kgPlot$SperG)
+  
+  #kgPCA <-data.frame(kgPCA,kgPlot$SperG)
+  if (pCount == 1) {
+    kgPCA <- data.frame(c(kgPlot$SperG,kgPlot$percent))
+    pCount <- pCount + 1
+  } else {
+    kgPCA <-data.frame(kgPCA,c(kgPlot$SperG,kgPlot$percent))
+  }
+}
+
+colnames(kgPCA) <- players
+rownames(kgPCA) <- c(paste(unique(pcaShots$shotQuadrant),"Shots", sep = "_"),paste(unique(pcaShots$shotQuadrant),"Percent", sep = "_"))
+
+PCA <- prcomp(t(kgPCA))
+
+#plot(PCA$x[,1:2], cex = .01, xlim = c(-6,3)); text(PCA$x[,1:2], labels = colnames(kgPCA), cex = 1)
+plot(PCA$x[,1:2], cex = .01); text(PCA$x[,1:2], labels = colnames(kgPCA), cex = 1)
+
+UMLCcolors <- c("darkblue","darkblue","darkblue","darkblue","darkblue","darkblue","darkred","darkred","darkred","darkred","darkred","darkblue","darkred")
+NovaKUcolors <- c("blue","blue","blue","blue","blue","dodgerblue2","dodgerblue2","dodgerblue2","dodgerblue2","dodgerblue2","dodgerblue2")
+
+plot(PCA$x[,1:2], cex = .01, xlim = c(-1.1,1.5), main = "Loyola-Chi v UMich - Individual Shooting Trends"); text(PCA$x[,1:2], labels = colnames(kgPCA), cex = ShotsperGame/8, col = UMLCcolors)
+plot(PCA$x[,1:2], cex = .01, xlim = c(-.65,1.4), main = "Nova v KU - Individual Shooting Trends"); text(PCA$x[,1:2], labels = colnames(kgPCA), cex = ShotsperGame/8, col = NovaKUcolors)
+
+
+
+plot(PCA$x[,1:2], cex = .01); text(PCA$x[,1:2], labels = colnames(kgPCA), cex = ShotsperGame/9)
+
+#plot(PCA$x[,2:3]); text(PCA$x[,2:3], labels = colnames(kgPCA))
+
+#plot(PCA$x[,c(1,3)]); text(PCA$x[,c(1,3)], labels = colnames(kgPCA))
+
+#PCAshots <- prcomp(t(kgPCA[1:14,]))
+#plot(PCAshots$x[,1:2], cex = .01); text(PCAshots$x[,1:2], labels = colnames(kgPCA), cex = 1)
+
+```
+
+```{r}
+PCAtest <- prcomp(t(kgPCAtest))
+
+plot(PCAtest$x[,1:2], cex = .01, xlim = c(-6,3)); text(PCAtest$x[,1:2], labels = colnames(kgPCAtest), cex = 1)
+plot(PCAtest$x[,1:2], cex = .01); text(PCAtest$x[,1:2], labels = colnames(kgPCAtest), cex = 1)
+
+```
+
+
+
+
+```{r Team ShotValue}
+
+
+P6list <- as.character(read.csv2("teamlistR.txt", sep = "/", header = FALSE)[,2])
+tCount <- 1
+
+for (teamPlot in P6list) {
+  #teamPlot <- "north-carolina-tar-heels"
+  
+  teamSubset <- subset(shotsTrans, teamName == teamPlot | oppName == teamPlot)
+  
+  #lastGame <- max(teamSubset$gameNum)
+  games <- unique(teamSubset$espnNum)
+  
+  teamSubset$gameExpFGPer <- 0
+  #teamSubset$teamZoneFGDiff <- 0
+  
+  cumExpMargin <- 0
+  wins <- 0
+  losses <- 0 
+  
+  #for each game, calculate each team's offensive and defensive averages by zone
+  for (g in games) {
+    gameSubset <- subset(teamSubset, espnNum == g & teamName == teamPlot)
+    oppPlot <- gameSubset$oppName[1]
+    if (teamPlot %in% P6list & oppPlot %in% P6list) {
+      gameFTAs <- max(gameSubset$shotNum) - length(gameSubset$shotNum) + 1
+      oppSubset <- subset(teamSubset, espnNum == g & teamName != teamPlot)
+      oppFTAs <- max(oppSubset$shotNum) - length(oppSubset$shotNum) + 1
+      #for each 3pt zone average team shooting w/NCAA
+      for (zone in unique(subset(gameSubset, dist > 20.75)$shotQuadrant)) {
+        teamPer <- dim(subset(shotsTrans, teamName == teamPlot & shotQuadrant == zone & outcome == "made"))[1] / 
+          dim(subset(shotsTrans, teamName == teamPlot & shotQuadrant == zone))[1]
+        ncaaPer <- subset(shotsTrans, teamName == teamPlot & shotQuadrant == zone)$zoneFGPer[1]
+        gameSubset$gameExpFGPer <- ifelse(gameSubset$shotQuadrant == zone, 
+                                          (teamPer + ncaaPer) / 2, 
+                                          gameSubset$gameExpFGPer)
+      }
+      for (zone in unique(subset(oppSubset, dist > 20.75)$shotQuadrant)) {
+        teamPer <- dim(subset(shotsTrans, teamName == oppPlot & shotQuadrant == zone & outcome == "made"))[1] / 
+          dim(subset(shotsTrans, teamName == oppPlot & shotQuadrant == zone))[1]
+        ncaaPer <- subset(shotsTrans, teamName == oppPlot & shotQuadrant == zone)$zoneFGPer[1]
+        oppSubset$gameExpFGPer <- ifelse(oppSubset$shotQuadrant == zone, 
+                                         (teamPer + ncaaPer) / 2, 
+                                         oppSubset$gameExpFGPer)
+  
+      }
+      #for each 2pt zone average team shooting w/opp defense w/NCAA
+      for (zone in unique(subset(gameSubset, dist < 20.75)$shotQuadrant)) {
+        teamPer <- dim(subset(shotsTrans, teamName == teamPlot & shotQuadrant == zone & outcome == "made"))[1] / 
+          dim(subset(shotsTrans, teamName == teamPlot & shotQuadrant == zone))[1]
+        ncaaPer <- subset(shotsTrans, teamName == teamPlot & shotQuadrant == zone)$zoneFGPer[1]
+        oppPer <- dim(subset(shotsTrans, oppName == oppPlot & shotQuadrant == zone & outcome == "made"))[1] / 
+          dim(subset(shotsTrans, oppName == oppPlot & shotQuadrant == zone))[1]
+        gameSubset$gameExpFGPer <- ifelse(gameSubset$shotQuadrant == zone, 
+                                          (((teamPer + oppPer) / 2 ) + ncaaPer) / 2, 
+                                          gameSubset$gameExpFGPer)
+      }
+      for (zone in unique(subset(oppSubset, dist < 20.75)$shotQuadrant)) {
+        teamPer <- dim(subset(shotsTrans, teamName == oppPlot & shotQuadrant == zone & outcome == "made"))[1] / 
+          dim(subset(shotsTrans, teamName == oppPlot & shotQuadrant == zone))[1]
+        ncaaPer <- subset(shotsTrans, teamName == oppPlot & shotQuadrant == zone)$zoneFGPer[1]
+        oppPer <- dim(subset(shotsTrans, oppName == teamPlot & shotQuadrant == zone & outcome == "made"))[1] / 
+          dim(subset(shotsTrans, oppName == teamPlot & shotQuadrant == zone))[1]
+        oppSubset$gameExpFGPer <- ifelse(oppSubset$shotQuadrant == zone, 
+                                         (((teamPer + oppPer) / 2 ) + ncaaPer) / 2, 
+                                         oppSubset$gameExpFGPer)
+      }
+      
+      gameSubset$gameExpPts <- ( gameSubset$gameExpFGPer * gameSubset$FGtype )
+      oppSubset$gameExpPts <- ( oppSubset$gameExpFGPer * oppSubset$FGtype )
+      teamExpPts <- .711 * gameFTAs + sum(gameSubset$gameExpPts)
+      oppExpPts <- .711 * oppFTAs + sum(oppSubset$gameExpPts)
+      #this should be a more accurate Exp Pts
+      expMargin <- teamExpPts - oppExpPts
+      cumExpMargin <- expMargin + cumExpMargin
+      #print(teamExpPts - oppExpPts)
+      if (expMargin > 0) {
+        wins <- wins + 1
+      } else {
+        losses <- losses + 1
+      }
+    }
+  }
+  
+  print(teamPlot)
+  #print(cumExpMargin)
+  #print(wins)
+  #print(losses)
+  expMargPerGame <- cumExpMargin / length(games)
+   if (tCount == 1) {
+    shotVal <- data.frame(teamPlot,cumExpMargin,wins,losses,expMargPerGame)
+    tCount <- tCount + 1
+  } else {
+    shotVal <- rbind(shotVal,data.frame(teamPlot,cumExpMargin,wins,losses,expMargPerGame))
+  }
+}
+
+tCount <- 1
+
+#second run with "strength of schedule""
+for (teamPlot in P6list) {
+  
+  teamSubset <- subset(shotsTrans, teamName == teamPlot | oppName == teamPlot)
+  
+  #lastGame <- max(teamSubset$gameNum)
+  games <- unique(teamSubset$espnNum)
+  
+  allExpMargins <- 1:length(games)
+  allAdjExpMargins <- 1:length(games)
+  
+  teamSubset$gameExpFGPer <- 0
+  #teamSubset$teamZoneFGDiff <- 0
+  
+  cumExpMargin <- 0
+  cumAdjExpMargin <- 0
+  cumExpPtsFor <- 0
+  cumExpPtsAga <- 0
+  wins <- 0
+  losses <- 0
+  actualWins <- 0
+  actualLosses <- 0
+  
+  
+  count <- 1
+  
+  #for each game, calculate each team's offensive and defensive averages by zone
+  for (g in games) {
+    gameSubset <- subset(teamSubset, espnNum == g & teamName == teamPlot)
+    oppPlot <- gameSubset$oppName[1]
+    if (teamPlot %in% P6list & oppPlot %in% P6list) {
+      gameFTAs <- max(gameSubset$shotNum) - length(gameSubset$shotNum) + 1
+      oppSubset <- subset(teamSubset, espnNum == g & teamName != teamPlot)
+      oppFTAs <- max(oppSubset$shotNum) - length(oppSubset$shotNum) + 1
+      #for each 3pt zone average team shooting w/NCAA
+      for (zone in unique(subset(gameSubset, dist > 20.75)$shotQuadrant)) {
+        teamPer <- dim(subset(shotsTrans, teamName == teamPlot & shotQuadrant == zone & outcome == "made"))[1] / 
+          dim(subset(shotsTrans, teamName == teamPlot & shotQuadrant == zone))[1]
+        ncaaPer <- subset(shotsTrans, teamName == teamPlot & shotQuadrant == zone)$zoneFGPer[1]
+        gameSubset$gameExpFGPer <- ifelse(gameSubset$shotQuadrant == zone, 
+                                          (teamPer + ncaaPer) / 2, 
+                                          gameSubset$gameExpFGPer)
+      }
+      for (zone in unique(subset(oppSubset, dist > 20.75)$shotQuadrant)) {
+        teamPer <- dim(subset(shotsTrans, teamName == oppPlot & shotQuadrant == zone & outcome == "made"))[1] / 
+          dim(subset(shotsTrans, teamName == oppPlot & shotQuadrant == zone))[1]
+        ncaaPer <- subset(shotsTrans, teamName == oppPlot & shotQuadrant == zone)$zoneFGPer[1]
+        oppSubset$gameExpFGPer <- ifelse(oppSubset$shotQuadrant == zone, 
+                                         (teamPer + ncaaPer) / 2, 
+                                         oppSubset$gameExpFGPer)
+  
+      }
+      #for each 2pt zone average team shooting w/opp defense w/NCAA
+      for (zone in unique(subset(gameSubset, dist < 20.75)$shotQuadrant)) {
+        teamPer <- dim(subset(shotsTrans, teamName == teamPlot & shotQuadrant == zone & outcome == "made"))[1] / 
+          dim(subset(shotsTrans, teamName == teamPlot & shotQuadrant == zone))[1]
+        ncaaPer <- subset(shotsTrans, teamName == teamPlot & shotQuadrant == zone)$zoneFGPer[1]
+        oppPer <- dim(subset(shotsTrans, oppName == oppPlot & shotQuadrant == zone & outcome == "made"))[1] / 
+          dim(subset(shotsTrans, oppName == oppPlot & shotQuadrant == zone))[1]
+        gameSubset$gameExpFGPer <- ifelse(gameSubset$shotQuadrant == zone, 
+                                          (((teamPer + oppPer) / 2 ) + ncaaPer) / 2, 
+                                          gameSubset$gameExpFGPer)
+      }
+      for (zone in unique(subset(oppSubset, dist < 20.75)$shotQuadrant)) {
+        teamPer <- dim(subset(shotsTrans, teamName == oppPlot & shotQuadrant == zone & outcome == "made"))[1] / 
+          dim(subset(shotsTrans, teamName == oppPlot & shotQuadrant == zone))[1]
+        ncaaPer <- subset(shotsTrans, teamName == oppPlot & shotQuadrant == zone)$zoneFGPer[1]
+        oppPer <- dim(subset(shotsTrans, oppName == teamPlot & shotQuadrant == zone & outcome == "made"))[1] / 
+          dim(subset(shotsTrans, oppName == teamPlot & shotQuadrant == zone))[1]
+        oppSubset$gameExpFGPer <- ifelse(oppSubset$shotQuadrant == zone, 
+                                         (((teamPer + oppPer) / 2 ) + ncaaPer) / 2, 
+                                         oppSubset$gameExpFGPer)
+      }
+      
+      gameSubset$gameExpPts <- ( gameSubset$gameExpFGPer * gameSubset$FGtype )
+      oppSubset$gameExpPts <- ( oppSubset$gameExpFGPer * oppSubset$FGtype )
+      teamExpPts <- .711 * gameFTAs + sum(gameSubset$gameExpPts)
+      cumExpPtsFor <- cumExpPtsFor + teamExpPts
+      oppExpPts <- .711 * oppFTAs + sum(oppSubset$gameExpPts)
+      cumExpPtsAga <- cumExpPtsAga + oppExpPts
+      #this should be a more accurate Exp Pts
+      expMargin <- teamExpPts - oppExpPts
+      #here, add this value to a vector
+      cumExpMargin <- expMargin + cumExpMargin
+      allExpMargins[count] <- expMargin
+      adjExpMargin <- expMargin + shotVal[as.character(shotVal$teamPlot) == oppPlot,]$expMargPerGame[1]
+      #and here, add this value to a vector
+      allAdjExpMargins[count] <- adjExpMargin
+      cumAdjExpMargin <- cumAdjExpMargin + adjExpMargin
+      if (expMargin > 0) {
+        wins <- wins + 1
+      } else {
+        losses <- losses + 1
+      }
+      
+      if ( gameSubset$gameOutcome[1] == "Win") {
+        actualWins <- actualWins + 1
+      } else {
+        actualLosses <- actualLosses + 1
+      }
+      count <- count + 1
+      #add in actual win and loss
+      #add in a z-score to assess statistical difference from 0...
+    }
+  }
+  
+  allAdjExpMargins <- allAdjExpMargins[1:(count - 1)]
+  
+  allExpMargins <- allExpMargins[1:(count - 1)]
+  
+  margTest <- t.test(allExpMargins)
+  adjmargTest <- t.test(allAdjExpMargins)
+  
+  margTStat <- margTest$statistic
+  adjMargTStat <- adjmargTest$statistic
+  
+  margMin <- margTest$conf.int[1]
+  margMax <- margTest$conf.int[2]
+  
+  adjMargMin <- adjmargTest$conf.int[1]
+  adjMargMax <- adjmargTest$conf.int[2]
+  
+  expPythag <- cumExpPtsFor^13.91 / ( cumExpPtsFor^13.91 + cumExpPtsAga^13.91 )
+  
+  FG <- dim(subset(teamSubset, teamName == teamPlot & outcome == "made"))[1]
+  FG3 <- dim(subset(teamSubset, teamName == teamPlot & FGtype == 3 & outcome == "made"))[1]
+  FGA <- dim(subset(teamSubset, teamName == teamPlot ))[1]
+  
+  eFG <- ( FG + .5 * FG3 ) / FGA
+  
+    
+    
+  print(teamPlot)
+  #print(cumExpMargin)
+  #print(wins)
+  #print(losses)
+  expMargPerGame <- cumExpMargin / length(games)
+  adjExpMargPerGame <- cumAdjExpMargin / length(games)
+
+     if (tCount == 1) {
+    shotValAdj <- data.frame(teamPlot,wins,losses,
+                             actualWins,actualLosses,
+                             cumExpMargin,expMargPerGame,margMin,margMax,margTStat,
+                             cumAdjExpMargin,adjExpMargPerGame,
+                             adjMargTStat,adjMargMin,adjMargMax,
+                             expPythag,eFG)
+    tCount <- tCount + 1
+  } else {
+    shotValAdj <- rbind(shotValAdj,data.frame(teamPlot,wins,losses,
+                                              actualWins,actualLosses,
+                                              cumExpMargin,expMargPerGame,margMin,margMax,margTStat,
+                                              cumAdjExpMargin,adjExpMargPerGame,
+                                              adjMargTStat,adjMargMin,adjMargMax,
+                                              expPythag,eFG))
+  }
+}
+
+```
+
+

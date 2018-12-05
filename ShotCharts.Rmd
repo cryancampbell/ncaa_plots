@@ -16,6 +16,10 @@ library(gridExtra)
 #install.packages("gtools")
 library(gtools)
 
+library(ggimage)
+
+teamLogo <- read.csv2("team_logo_links.csv", sep = ",", dec = ".")
+
 # shots <- read.csv("fullshotChart.csv", sep = ",", header = F)
 # 
 # colnames(shots) <- c("shotNum","outcome","chartTeam","team","gameNum",
@@ -1488,6 +1492,8 @@ for (teamPlot in P6list) {
 
 ```{r Best Scorer by Region}
 
+
+
 #set up some minimums
 minGames <- 3
 minShots <- 20
@@ -1546,6 +1552,13 @@ for (s in rownames(dataShooters)) {
 }
 
 #who shoots most/best where
+#put this in a dataframe!
+#bestScorers
+bestScorer <- data.frame(matrix(0, ncol = 11, nrow = 14), row.names = quadrants[c(2,8,5,12,3,13,9,1,4,11,6,7,10,14)])
+colnames(bestScorer) <- c("shooter","shots","points","games","pointsPerGame","quadFGPer",
+                          "shooterEfficiency","teamName","logo","xPlot","yPlot")
+
+
 for (q in c(2,8,5,12,3,13,9,1,4,11,6,7,10,14)) {
   xPlot <- median(subset(shotsTrans, shotQuadrant == quadrants[q])$baseline)
   yPlot <- median(subset(shotsTrans, shotQuadrant == quadrants[q])$depth)
@@ -1558,12 +1571,36 @@ for (q in c(2,8,5,12,3,13,9,1,4,11,6,7,10,14)) {
   #print(rownames(dataShooters[order(-dataShooters[,q]),])[1])
   #print(dataShooters[order(-dataShooters[,q]),q][1])
 }
+
+qCount <- 1
+for (q in c(2,8,5,12,3,13,9,1,4,11,6,7,10,14)) {
+  bestScorer$xPlot[qCount] <- median(subset(shotsTrans, shotQuadrant == quadrants[q])$baseline)
+  bestScorer$yPlot[qCount] <- median(subset(shotsTrans, shotQuadrant == quadrants[q])$depth)
+  bestScorer$shooter[qCount] <- rownames(dataShooters[order(-dataShooters[,q]),])[1]
+  bestScorer$pointsPerGame[qCount] <- dataShooters[order(-dataShooters[,q]),q][1]
+  bestScorer$points[qCount] <- dataShooters[order(-dataShooters[,q]), q + 14][1]
+  bestScorer$games[qCount] <- bestScorer$points[qCount] / bestScorer$pointsPerGame[qCount]
+  #within here is probably the best place to continue populating this DF
+  #query shatsTrans for teamName number of shots, quadFGPer 
+  #calculate efficiency (+/- average?) from those
+  #use teamName to find logo
+  qCount <- qCount + 1
+}
+
+bestScorer
+
+
+
+
 ```
 
 
 ```{r Plot Best Scorer}
 
-bestScorer <- ggplot(reducedShots, aes(baseline, depth)) + 
+
+
+
+bestScorerPlot <- ggplot(reducedShots, aes(baseline, depth)) + 
   ylim(0,40)  + xlim(0,50) + 
   geom_point(size = 0, alpha = .01) +
   geom_polygon(data = court[court$side==1,], aes(x = x, y = y, group = group), col = "gray") +
@@ -1577,6 +1614,7 @@ bestScorer <- ggplot(reducedShots, aes(baseline, depth)) +
         axis.text.y = element_blank(), axis.ticks.x = element_blank(),
         axis.ticks.y = element_blank(), axis.title = element_blank())
 
+
 #plot who shoots most/best where
 for (q in c(2,8,5,12,3,13,9,1,4,11,6,7,10,14)) {
   player <- rownames(dataShooters[order(-dataShooters[,q]),])[1]
@@ -1589,11 +1627,11 @@ for (q in c(2,8,5,12,3,13,9,1,4,11,6,7,10,14)) {
           dataShooters[order(-dataShooters[,q]),q][1],
           xPlot,
           yPlot))
-  bestScorer <- bestScorer + geom_text(x = xPlot, y = yPlot, label = player, alpha = .02, color = "blue", angle = 20)
-  bestScorer <- bestScorer + geom_text(x = xPlot, y = yPlot + 2, label = ppg, alpha = .01, color = "black", angle = 20)
+  bestScorerPlot <- bestScorerPlot + geom_text(x = xPlot, y = yPlot, label = player, alpha = .02, color = "blue", angle = 20)
+  bestScorerPlot <- bestScorerPlot + geom_text(x = xPlot, y = yPlot + 2, label = ppg, alpha = .01, color = "black", angle = 20)
 }
 
-bestScorer
+bestScorerPlot
 
 ggsave("plots/bestScorer_secondAttempt_day2.png")
 

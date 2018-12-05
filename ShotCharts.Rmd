@@ -770,62 +770,41 @@ chartShots <- function(teamPlot="north-carolina-tar-heels", chartPlayer="all", g
 ```{r common plots}
 lastGame("north-carolina-tar-heels")
 lastGame("duke-blue-devils")
-#lastGame("nc-state-wolfpack")
-lastGame("virginia-cavaliers")
-lastGame("kansas-jayhawks")
 
-chartShots(teamPlot = "north-carolina-tar-heels", plotType = "kg", games = "all")
-ggsave("plots/unc_season_4games.png")
-chartShots(teamPlot = "north-carolina-tar-heels", chartPlayer = "NassirLittle", plotType = "kg", games = "all")
-ggsave("plots/nas_kg_5games.png")
-chartShots(teamPlot = "north-carolina-tar-heels", chartPlayer = "NassirLittle", plotType = "shot", games = "all")
-ggsave("plots/nas_shot_5games.png")
-
-chartShots(teamPlot = "duke-blue-devils", plotType = "kg", games = "all")
-ggsave("plots/duke_kg_mauifinal.png")
-
-chartShots(teamPlot = "gonzaga-bulldogs", plotType = "kg", games = "all")
-ggsave("plots/zags_kg_mauifinal.png")
-
-
-chartShots(teamPlot = "north-carolina-tar-heels", plotType = "kg", games = "all")
-ggsave("plots/unc_LVI.png")
-chartShots(teamPlot = "texas-longhorns", plotType = "kg", games = "all")
-ggsave("plots/tex_LVI.png")
 chartShots(teamPlot = "michigan-state-spartans", plotType = "kg", games = "all")
-ggsave("plots/msu_LVI.png")
-chartShots(teamPlot = "ucla-bruins", plotType = "kg", games = "all")
-ggsave("plots/ucla_LVI.png")
+ggsave("plots/msu_kg.png")
+chartShots(teamPlot = "michigan-state-spartans", chartPlayer = "CassiusWinston", plotType = "kg", games = "all")
+ggsave("plots/msu_winston_kg.png")
+chartShots(teamPlot = "michigan-state-spartans", chartPlayer = "JoshuaLangford", plotType = "kg", games = "all")
+ggsave("plots/msu_langford_kg.png")
+chartShots(teamPlot = "michigan-state-spartans", chartPlayer = "NickWard", plotType = "kg", games = "all")
+ggsave("plots/msu_ward_kg.png")
+chartShots(teamPlot = "louisville-cardinals", plotType = "kg", games = "all")
+ggsave("plots/lville_kg.png")
 
+chartShots(teamPlot = "wisconsin-badgers", plotType = "kg", games = "all")
+ggsave("plots/wisc_kg.png")
+chartShots(teamPlot = "wisconsin-badgers", chartPlayer = "EthanHapp", plotType = "kg", games = "all")
+ggsave("plots/wisc_happ_kg.png")
+chartShots(teamPlot = "wisconsin-badgers", chartPlayer = "D'MitrikTrice", plotType = "kg", games = "all")
+ggsave("plots/wisc_trice_kg.png")
 
-
-
-
-
-chartShots(teamPlot = "duke-blue-devils", chartPlayer = "CamReddish", plotType = "kg", games = "all")
-ggsave("plots/red_kg_4games.png")
-chartShots(teamPlot = "duke-blue-devils", chartPlayer = "ZionWilliamson", plotType = "kg", games = "all")
-ggsave("plots/zion_kg_4games.png")
-chartShots(teamPlot = "duke-blue-devils", chartPlayer = "RJBarrett", plotType = "kg", games = "all")
-ggsave("plots/rj_kg_4games.png")
-chartShots(teamPlot = "duke-blue-devils", chartPlayer = "TreJones", plotType = "kg", games = "all")
-ggsave("plots/tre_kg_4games.png")
-
-
-
-chartShots(teamPlot = "north-carolina-tar-heels", chartPlayer = "KennyWilliams", plotType = "shot", games = "some", n = 1)
-
-chartShots(teamPlot = "kansas-jayhawks", chartPlayer = "UdokaAzubuike", plotType = "kg", games = "all")
-ggsave("plots/azubuike_kg_2games.png")
-chartShots(teamPlot = "kansas-jayhawks", chartPlayer = "UdokaAzubuike", plotType = "shot", games = "all")
-ggsave("plots/azubuike_shot_2games.png")
-
-chartShots(teamPlot = "north-carolina-tar-heels", chartPlayer = "GarrisonBrooks", plotType = "kg", games = "all")
-chartShots(teamPlot = "north-carolina-tar-heels", chartPlayer = "GarrisonBrooks", plotType = "shot", games = "all")
-
-
-ggplot(subset(shotsTrans, shooter == "UdokaAzubuike" | shooter == "GarrisonBrooks")) +
-  geom_point(aes(x = dist, y = points, col = shooter))
+chartShots(teamPlot = "north-carolina-tar-heels", plotType = "kg", games = "all")
+ggsave("plots/unc_kg.png")
+chartShots(teamPlot = "north-carolina-tar-heels", chartPlayer = "LukeMaye", plotType = "kg", games = "all")
+ggsave("plots/unc_luke_kg.png")
+chartShots(teamPlot = "north-carolina-tar-heels", chartPlayer = "CameronJohnson", plotType = "kg", games = "all")
+ggsave("plots/unc_cam_kg.png")
+chartShots(teamPlot = "north-carolina-tar-heels", chartPlayer = "NassirLittle", plotType = "kg", games = "all")
+ggsave("plots/unc_nas_kg.png")
+chartShots(teamPlot = "michigan-wolverines", plotType = "kg", games = "all")
+ggsave("plots/mich_kg.png")
+chartShots(teamPlot = "michigan-wolverines", chartPlayer = "IgnasBrazdeikis", plotType = "kg", games = "all")
+ggsave("plots/mich_braz_kg.png")
+chartShots(teamPlot = "michigan-wolverines", chartPlayer = "CharlesMatthews", plotType = "kg", games = "all")
+ggsave("plots/mich_matthews_kg.png")
+chartShots(teamPlot = "arizona-wildcats", chartPlayer = "JustinColeman", plotType = "kg", games = "all")
+ggsave("plots/mich_teske_kg.png")
 
 
 ggplot(subset(subset(shotsTrans, dist < 10), shooter == "UdokaAzubuike" | shooter == "GarrisonBrooks" | shooter == "EricPaschall")[-26,], aes(x = dist, y = points/2, col = shooter)) +
@@ -836,48 +815,50 @@ ggplot(subset(subset(shotsTrans, dist < 10), shooter == "UdokaAzubuike" | shoote
 ggsave("plots/azubuike_byDist_wComps.png")
 
 
-ggplot(subset(shotsTrans, shooter == "UdokaAzubuike"), aes(x = dist, y = points/2, col = shooter)) +
-  geom_point() +
-  geom_smooth(method = "glm", 
-    method.args = list(family = "binomial"), 
-    se = FALSE) 
-ggsave("plots/azubuike_byDist.png")
+ggplot(subset(shotsTrans, teamName == "north-carolina-tar-heels" | teamName == "michigan-wolverines"), 
+       aes(x = dist, y = points, col = teamName)) +
+  geom_jitter(height = .2, size = 3, alpha = .5) +
+  geom_smooth(method = "loess", se = TRUE) +
+  ggtitle("UNC & Michigan: Expected Points by Distance") +
+  xlab("Distance from Basket (ft)") +
+  ylab("Expected Points") +
+  scale_color_manual(values=c(rgb(red = 255, green = 203, blue = 5, max = 255), 
+                              rgb(red = 75, green = 156, blue = 211, max = 255)))
+ggsave("plots/UNC_UMich_by_dist.png")
 
-ggplot(subset(shotsTrans, shooter == "UdokaAzubuike")[-6,], aes(x = dist, y = points/2, col = shooter)) +
-  geom_point() +
-  geom_smooth(method = "glm", 
-    method.args = list(family = "binomial"), 
-    se = FALSE) 
+chartShots(teamPlot = "indiana-hoosiers", chartPlayer = "RomeoLangford", plotType = "shot", games = "all")
+#ggsave("plots/sev_kg_4games.png")
+chartShots(teamPlot = "duke-blue-devils", chartPlayer = "ZionWilliamson", plotType = "kg", games = "all")
 
-chartShots(teamPlot = "north-carolina-tar-heels", chartPlayer = "LukeMaye", plotType = "kg", games = "all")
-ggsave("plots/luke_kg_5games.png")
+ggplot(subset(subset(shotsTrans, dist < 10.1), shooter == "ZionWilliamson"), 
+       aes(x = dist, y = points, col = oppName)) +
+  geom_jitter(height = .2, size = 3, alpha = .5) +
+  geom_smooth(method = "loess", se = FALSE, span = 2) +
+  ggtitle("Zion: Expected Points by Distance") +
+  xlab("Distance from Basket (ft)") +
+  ylab("Expected Points")
+  #scale_color_manual(values=c(rgb(red = 255, green = 203, blue = 5, max = 255), 
+                              #rgb(red = 75, green = 156, blue = 211, max = 255)))
+ggsave("plots/zion_shotbydist_winloss.png")
 
-chartShots(teamPlot = "north-carolina-tar-heels", chartPlayer = "CobyWhite", plotType = "shot", games = "some", n = 1)
-ggsave("plots/coby_shot_texas.png")
-chartShots(teamPlot = "north-carolina-tar-heels", chartPlayer = "CobyWhite", plotType = "kg", games = "all")
-ggsave("plots/coby_kg_6games.png")
-
-
-chartShots(teamPlot = "north-carolina-tar-heels", chartPlayer = "SeventhWoods", plotType = "kg", games = "all")
-ggsave("plots/sev_kg_4games.png")
-chartShots(teamPlot = "north-carolina-tar-heels", chartPlayer = "SeventhWoods", plotType = "shot", games = "all")
 
 ```
+
 
 ```{r plot shots by criteria}
 
 #reducedShots <- subset(subset(subset(subset(shotsTrans, shooter == "LukeMaye" | shooter == "NassirLittle"),dist > 10),outcome == "made"), teamName == "north-carolina-tar-heels")
 #reducedShots <- subset(subset(shotsTrans, assisted == "Assist"), assister == "TreJones" | assister == "RJBarrett")
 
-reducedShots <- subset(subset(shotsTrans, teamName == "gonzaga-bulldogs"), oppName == "duke-blue-devils")
+#reducedShots <- subset(subset(shotsTrans, teamName == "gonzaga-bulldogs"), oppName == "duke-blue-devils")
 
-reducedShots$halfText <- ifelse(reducedShots$half == 1, "first", "second")
+reducedShots <- subset(shotsTrans, shooter == "ZionWilliamson" | shooter == "RJBarrett")
 
-ggplot(reducedShots, aes( x = baseline, y = depth)) + 
+ggplot(reducedShots, aes(baseline, depth)) + 
   #geom_point(aes(x=25, y=5.25), col = "gray", size = 8) + 
   ylim(0,40)  + xlim(0,50) + 
-  geom_jitter(aes(col = halfText, shape = outcome), size = 5, width = 1.5, height = 1.5, alpha = .8) +
-  #geom_point(aes(col = shooter), size = 5, alpha = 0.7) +
+  geom_jitter(aes(col = shooter, shape = outcome), size = 5, width = .5, height = .5, alpha = .8) +
+  #geom_point(size = 5, alpha = 0.7) +
   geom_polygon(data = court[court$side==1,], aes(x = x, y = y, group = group), col = "gray") +
   coord_equal() +
   xlim(-3,54) +
@@ -888,9 +869,65 @@ ggplot(reducedShots, aes( x = baseline, y = depth)) +
   theme(axis.text.x = element_blank(),
         axis.text.y = element_blank(), axis.ticks.x = element_blank(),
         axis.ticks.y = element_blank(), axis.title = element_blank()
-  ) + scale_shape_manual(values=c(16, 88)) + ggtitle("Gonzaga v. Duke, Zags Shots by Half")
+  ) + scale_shape_manual(values=c(16, 1))
 
-ggsave("plots/Gonzaga_Bolden_effect.png")
+ggsave("plots/Duke_RJvZion.png", width = 7, height = 7)
+
+reducedShots <- subset(shotsTrans, shooter == "LageraldVick")
+sum(reducedShots$points) - sum(reducedShots$zoneFGPer * reducedShots$FGtypedist)
+sum(reducedShots$points) - sum(reducedShots$BbyDFGPer * reducedShots$FGtypedist)
+(sum(reducedShots$points) - sum(reducedShots$zoneFGPer * reducedShots$FGtypedist)) / dim(reducedShots)[1]
+(sum(reducedShots$points) - sum(reducedShots$BbyDFGPer * reducedShots$FGtypedist)) / dim(reducedShots)[1]
+
+chartShots(teamPlot = "kansas-jayhawks", chartPlayer = "LageraldVick", plotType = "kg", games = "all")
+ggsave("plots/zion_kg.png")
+
+
+
+reducedShots <- subset(shotsTrans, shooter == "ZionWilliamson")
+sum(reducedShots$points) - sum(reducedShots$zoneFGPer * reducedShots$FGtypedist)
+sum(reducedShots$points) - sum(reducedShots$BbyDFGPer * reducedShots$FGtypedist)
+(sum(reducedShots$points) - sum(reducedShots$zoneFGPer * reducedShots$FGtypedist)) / dim(reducedShots)[1]
+(sum(reducedShots$points) - sum(reducedShots$BbyDFGPer * reducedShots$FGtypedist)) / dim(reducedShots)[1]
+
+chartShots(teamPlot = "duke-blue-devils", chartPlayer = "ZionWilliamson", plotType = "kg", games = "all")
+ggsave("plots/rj_kg.png")
+
+
+```
+
+```{r plot shots animation test}
+
+#reducedShots <- subset(subset(subset(subset(shotsTrans, shooter == "LukeMaye" | shooter == "NassirLittle"),dist > 10),outcome == "made"), teamName == "north-carolina-tar-heels")
+#reducedShots <- subset(subset(shotsTrans, assisted == "Assist"), assister == "TreJones" | assister == "RJBarrett")
+
+#reducedShots <- subset(subset(shotsTrans, teamName == "gonzaga-bulldogs"), oppName == "duke-blue-devils")
+
+reducedShots <- subset(subset(shotsTrans, shooter == "CobyWhite"))
+
+reducedShots$shotOrder <- reducedShots$gameNum * 100 + reducedShots$shotNum
+
+ggplot(reducedShots, aes(baseline, depth, cumulative = TRUE)) + 
+  #geom_point(aes(x=25, y=5.25), col = "gray", size = 8) + 
+  ylim(0,40)  + xlim(0,50) + 
+  geom_jitter(aes(shape = outcome), size = 5, width = 1.5, height = 1.5, alpha = .8) +
+  #geom_point(size = 5, alpha = 0.7) +
+  geom_polygon(data = court[court$side==1,], aes(x = x, y = y, group = group), col = "gray") +
+  coord_equal() +
+  xlim(-3,54) +
+  ylim(-3,50) +
+  scale_y_continuous(breaks = c(0, 23.5, 47)) +
+  scale_x_continuous(breaks = c(0, 12.5, 25, 37.5, 50)) +
+  xlab("") + ylab("") +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(), axis.ticks.x = element_blank(),
+        axis.ticks.y = element_blank(), axis.title = element_blank()
+  ) + scale_shape_manual(values=c(16, 88)) + 
+  labs(x = 'baseline', y = 'depth') +
+  transition_time(shotOrder) +
+  ease_aes('linear') +
+  ggtitle("Coby White Shots (6 games)")
+
 
 
 ```
@@ -1449,3 +1486,117 @@ for (teamPlot in P6list) {
 ```
 
 
+```{r Best Scorer by Region}
+
+#set up some minimums
+minGames <- 3
+minShots <- 20
+
+quadrants <- unique(shotsTrans$shotQuadrant)
+qPoints <- 1:14
+qPPG <- 1:14
+
+shootersByQuad <- 1:28
+
+listShooters <- "JumpyMcJumpshot"
+countShooter <- 1
+
+#need to separate the loops, once through to see which shooters qualify
+
+
+
+for (s in unique(shotsTrans$shooter)) {
+  singleShooter <- subset(shotsTrans, shooter == s)
+  shotsShooter <- dim(singleShooter)[1]
+  gamesShooter <- length(unique(singleShooter$gameNum))
+  
+  if (gamesShooter >= minGames & shotsShooter >= minShots) {
+    listShooters[countShooter] <- s
+    countShooter <- 1 + countShooter
+  }
+}
+
+#then again, once we know the dataframe size, to add the data    
+
+dataShooters <- data.frame(matrix(0, ncol = 28, nrow = length(listShooters)),row.names = listShooters)
+colnames(dataShooters) <- c(quadrants,quadrants)
+
+countShooter <- 1
+
+for (s in rownames(dataShooters)) {
+  singleShooter <- subset(shotsTrans, shooter == s)
+  shotsShooter <- dim(singleShooter)[1]
+  gamesShooter <- length(unique(singleShooter$gameNum))
+  
+  for (q in 1:14) {
+    quad <- quadrants[q]
+    #how many points did they score in each
+    quadrantPoints <- sum(subset(singleShooter, shotQuadrant == quad)$points)
+    #on how many shots
+    quadrantShots <- dim(subset(singleShooter, shotQuadrant == quad))[1]
+    #points per game
+    quadrantPPG <- quadrantPoints / gamesShooter
+    #NEED TO SWAP THIS FOR SHOTS, GAMES, POINTS, can calc all else from dataframe
+    dataShooters[countShooter,(q + 14)] <- quadrantPoints
+    #qPoints[q] <- quadrantPoints
+    dataShooters[countShooter,q] <- quadrantPPG
+    #qPPG[q] <- quadrantPPG
+  }
+  countShooter <- 1 + countShooter
+}
+
+#who shoots most/best where
+for (q in c(2,8,5,12,3,13,9,1,4,11,6,7,10,14)) {
+  xPlot <- median(subset(shotsTrans, shotQuadrant == quadrants[q])$baseline)
+  yPlot <- median(subset(shotsTrans, shotQuadrant == quadrants[q])$depth)
+  print(c(colnames(dataShooters)[q],
+          rownames(dataShooters[order(-dataShooters[,q]),])[1],
+          dataShooters[order(-dataShooters[,q]),q][1],
+          xPlot,
+          yPlot))
+  #print(colnames(dataShooters)[q])
+  #print(rownames(dataShooters[order(-dataShooters[,q]),])[1])
+  #print(dataShooters[order(-dataShooters[,q]),q][1])
+}
+```
+
+
+```{r Plot Best Scorer}
+
+bestScorer <- ggplot(reducedShots, aes(baseline, depth)) + 
+  ylim(0,40)  + xlim(0,50) + 
+  geom_point(size = 0, alpha = .01) +
+  geom_polygon(data = court[court$side==1,], aes(x = x, y = y, group = group), col = "gray") +
+  coord_equal() +
+  xlim(-3,54) +
+  ylim(-3,50) +
+  scale_y_continuous(breaks = c(0, 23.5, 47)) +
+  scale_x_continuous(breaks = c(0, 12.5, 25, 37.5, 50)) +
+  xlab("") + ylab("") +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(), axis.ticks.x = element_blank(),
+        axis.ticks.y = element_blank(), axis.title = element_blank())
+
+#plot who shoots most/best where
+for (q in c(2,8,5,12,3,13,9,1,4,11,6,7,10,14)) {
+  player <- rownames(dataShooters[order(-dataShooters[,q]),])[1]
+  ppg <- dataShooters[order(-dataShooters[,q]),q][1]
+  ppg <- format(round(ppg, digits = 1), nsmall = 1)
+  xPlot <- median(subset(shotsTrans, shotQuadrant == quadrants[q])$baseline)
+  yPlot <- median(subset(shotsTrans, shotQuadrant == quadrants[q])$depth)
+  print(c(colnames(dataShooters)[q],
+          rownames(dataShooters[order(-dataShooters[,q]),])[1],
+          dataShooters[order(-dataShooters[,q]),q][1],
+          xPlot,
+          yPlot))
+  bestScorer <- bestScorer + geom_text(x = xPlot, y = yPlot, label = player, alpha = .02, color = "blue", angle = 20)
+  bestScorer <- bestScorer + geom_text(x = xPlot, y = yPlot + 2, label = ppg, alpha = .01, color = "black", angle = 20)
+}
+
+bestScorer
+
+ggsave("plots/bestScorer_secondAttempt_day2.png")
+
+
+
+```

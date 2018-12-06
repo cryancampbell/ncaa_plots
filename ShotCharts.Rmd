@@ -1554,9 +1554,9 @@ for (s in rownames(dataShooters)) {
 #who shoots most/best where
 #put this in a dataframe!
 #bestScorers
-bestScorer <- data.frame(matrix(0, ncol = 11, nrow = 14), row.names = quadrants[c(2,8,5,12,3,13,9,1,4,11,6,7,10,14)])
+bestScorer <- data.frame(matrix(0, ncol = 12, nrow = 14), row.names = quadrants[c(2,8,5,12,3,13,9,1,4,11,6,7,10,14)])
 colnames(bestScorer) <- c("shooter","shots","points","games","pointsPerGame","quadFGPer",
-                          "shooterEfficiency","teamName","logo","xPlot","yPlot")
+                          "shooterEfficiency","teamName","logo","xPlot","yPlot","plotPPG")
 
 
 for (q in c(2,8,5,12,3,13,9,1,4,11,6,7,10,14)) {
@@ -1574,21 +1574,36 @@ for (q in c(2,8,5,12,3,13,9,1,4,11,6,7,10,14)) {
 
 qCount <- 1
 for (q in c(2,8,5,12,3,13,9,1,4,11,6,7,10,14)) {
+  FGtype <- subset(shotsTrans, shooter == rownames(dataShooters[order(-dataShooters[,q]),])[1] & 
+                     shotQuadrant == quadrants[q])$FGtype[1]
   bestScorer$xPlot[qCount] <- median(subset(shotsTrans, shotQuadrant == quadrants[q])$baseline)
   bestScorer$yPlot[qCount] <- median(subset(shotsTrans, shotQuadrant == quadrants[q])$depth)
   bestScorer$shooter[qCount] <- rownames(dataShooters[order(-dataShooters[,q]),])[1]
   bestScorer$pointsPerGame[qCount] <- dataShooters[order(-dataShooters[,q]),q][1]
   bestScorer$points[qCount] <- dataShooters[order(-dataShooters[,q]), q + 14][1]
   bestScorer$games[qCount] <- bestScorer$points[qCount] / bestScorer$pointsPerGame[qCount]
-  #within here is probably the best place to continue populating this DF
-  #query shatsTrans for teamName number of shots, quadFGPer 
+  bestScorer$shots[qCount] <- dim(subset(shotsTrans, shooter == rownames(dataShooters[order(-dataShooters[,q]),])[1] & 
+               shotQuadrant == quadrants[q]))[1]
+  bestScorer$quadFGPer[qCount] <- subset(shotsTrans, shooter == rownames(dataShooters[order(-dataShooters[,q]),])[1] & 
+           shotQuadrant == quadrants[q])$zoneFGPer[1]
+  bestScorer$teamName[qCount] <- as.character(subset(shotsTrans, shooter ==
+                                          rownames(dataShooters[order(-dataShooters[,q]),])[1])$teamName[1])
+  bestScorer$logo[qCount] <- as.character(teamLogo$logo[which(teamLogo$teamName == bestScorer$teamName[1])])
+  #bestScorer$shooterEfficiency[qCount] <- bestScorer$points[qCount] / 
+  #                        (bestScorer$shots[qCount] * bestScorer$quadFGPer[qCount])
+  bestScorer$shooterEfficiency[qCount] <- bestScorer$points[qCount] / bestScorer$shots[qCount] - 
+            FGType * bestScorer$quadFGPer[qCount]
   #calculate efficiency (+/- average?) from those
   #use teamName to find logo
   qCount <- qCount + 1
 }
+bestScorer$plotPPG <- format(round(bestScorer$pointsPerGame, digits = 1), nsmall = 1)
 
 bestScorer
 
+#fix X and Y plot numbers:
+#   tweak them then put them in a separate vector
+#
 
 
 
@@ -1635,6 +1650,24 @@ bestScorerPlot
 
 ggsave("plots/bestScorer_secondAttempt_day2.png")
 
+ggplot(bestScorer, aes(baseline, depth)) + 
+  ylim(0,40)  + xlim(0,50) + 
+  geom_text(aes(x = xPlot, y = yPlot + 1, label = shooter), angle = 20) +
+  geom_text(aes(x = xPlot, y = yPlot - 1, label = plotPPG), angle = 20) +
+  geom_polygon(data = court[court$side==1,], aes(x = x, y = y, group = group), col = "gray") +
+  coord_equal() +
+  xlim(-3,54) +
+  ylim(-3,50) +
+  scale_y_continuous(breaks = c(0, 23.5, 47)) +
+  scale_x_continuous(breaks = c(0, 12.5, 25, 37.5, 50)) +
+  xlab("") + ylab("") +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(), axis.ticks.x = element_blank(),
+        axis.ticks.y = element_blank(), axis.title = element_blank())
 
+ggsave("plots/bestScorer_thirdAttempt.png")
+
+#add logo
+#add color in the form of efficiency (number color?)
 
 ```

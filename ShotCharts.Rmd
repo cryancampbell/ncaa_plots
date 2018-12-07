@@ -1588,13 +1588,14 @@ for (q in c(2,8,5,12,3,13,9,1,4,11,6,7,10,14)) {
            shotQuadrant == quadrants[q])$zoneFGPer[1]
   bestScorer$teamName[qCount] <- as.character(subset(shotsTrans, shooter ==
                                           rownames(dataShooters[order(-dataShooters[,q]),])[1])$teamName[1])
-  bestScorer$logo[qCount] <- as.character(teamLogo$logo[which(teamLogo$teamName == bestScorer$teamName[1])])
-  #bestScorer$shooterEfficiency[qCount] <- bestScorer$points[qCount] / 
-  #                        (bestScorer$shots[qCount] * bestScorer$quadFGPer[qCount])
-  bestScorer$shooterEfficiency[qCount] <- bestScorer$points[qCount] / bestScorer$shots[qCount] - 
-            FGType * bestScorer$quadFGPer[qCount]
-  #calculate efficiency (+/- average?) from those
-  #use teamName to find logo
+  bestScorer$logo[qCount] <- as.character(teamLogo$logo[which(teamLogo$teamName == bestScorer$teamName[qCount])])
+  
+#  bestScorer$shooterEfficiency[qCount] <- bestScorer$points[qCount] / bestScorer$shots[qCount] - 
+#            FGType * bestScorer$quadFGPer[qCount]
+  bestScorer$shooterEfficiency[qCount] <- 100 * ( ( bestScorer$points[qCount] / FGtype ) / 
+            bestScorer$shots[qCount] - bestScorer$quadFGPer[qCount] )
+  
+  
   qCount <- qCount + 1
 }
 bestScorer$plotPPG <- format(round(bestScorer$pointsPerGame, digits = 1), nsmall = 1)
@@ -1604,8 +1605,30 @@ bestScorer
 #fix X and Y plot numbers:
 #   tweak them then put them in a separate vector
 #
+#make a shot trans with only the best scorers' shot locations
+#   do this with subset, shooter & zone | shooter & zone | ...
 
+shotsScorer <- subset(shotsTrans, shooter == bestScorer$shooter[1] & shotQuadrant == rownames(bestScorer)[1] |
+                   shooter == bestScorer$shooter[2] & shotQuadrant == rownames(bestScorer)[2] |
+                   shooter == bestScorer$shooter[3] & shotQuadrant == rownames(bestScorer)[3] |
+                   shooter == bestScorer$shooter[4] & shotQuadrant == rownames(bestScorer)[4] |                     
+                   shooter == bestScorer$shooter[5] & shotQuadrant == rownames(bestScorer)[5] |
+                   shooter == bestScorer$shooter[6] & shotQuadrant == rownames(bestScorer)[6] |
+                   shooter == bestScorer$shooter[7] & shotQuadrant == rownames(bestScorer)[7] |
+                   shooter == bestScorer$shooter[8] & shotQuadrant == rownames(bestScorer)[8] |
+                   shooter == bestScorer$shooter[9] & shotQuadrant == rownames(bestScorer)[9] |                     
+                   shooter == bestScorer$shooter[10] & shotQuadrant == rownames(bestScorer)[10] |
+                   shooter == bestScorer$shooter[11] & shotQuadrant == rownames(bestScorer)[11] |
+                   shooter == bestScorer$shooter[12] & shotQuadrant == rownames(bestScorer)[12] |
+                   shooter == bestScorer$shooter[13] & shotQuadrant == rownames(bestScorer)[13] |
+                   shooter == bestScorer$shooter[14] & shotQuadrant == rownames(bestScorer)[14])
 
+shotsScorer$zoneEff <- 0
+
+for (q in 1:14) {
+  shotsScorer$zoneEff <- ifelse(shotsScorer$shooter == bestScorer$shooter[q], 
+                              bestScorer$shooterEfficiency[q], shotsScorer$zoneEff)
+  }
 
 ```
 
@@ -1613,61 +1636,54 @@ bestScorer
 ```{r Plot Best Scorer}
 
 
+#tweak name locations
+yPos <- bestScorer$yPlot
+xPos <- bestScorer$xPlot
 
+yPos[c(2,4)] <- 8
+yPos[3] <- 11
+yPos[c(10,14)] <- 8
+yPos[c(5,9)] <- 3
+xPos[c(5,9)] <- c(10,40)
+yPos[1] <- 5
+yPos[7] <- 20
+xPos[c(2,4)] <- c(17,33)
+yPos[c(6,8)] <- 15
+xPos[c(6,8)] <- c(14,36)
+yPos[c(11,13)] <- 23
+xPos[c(11,13)] <- c(9,41)
+yPos[12] <- 28
 
-bestScorerPlot <- ggplot(reducedShots, aes(baseline, depth)) + 
-  ylim(0,40)  + xlim(0,50) + 
-  geom_point(size = 0, alpha = .01) +
-  geom_polygon(data = court[court$side==1,], aes(x = x, y = y, group = group), col = "gray") +
-  coord_equal() +
-  xlim(-3,54) +
-  ylim(-3,50) +
-  scale_y_continuous(breaks = c(0, 23.5, 47)) +
-  scale_x_continuous(breaks = c(0, 12.5, 25, 37.5, 50)) +
-  xlab("") + ylab("") +
-  theme(axis.text.x = element_blank(),
-        axis.text.y = element_blank(), axis.ticks.x = element_blank(),
-        axis.ticks.y = element_blank(), axis.title = element_blank())
-
-
-#plot who shoots most/best where
-for (q in c(2,8,5,12,3,13,9,1,4,11,6,7,10,14)) {
-  player <- rownames(dataShooters[order(-dataShooters[,q]),])[1]
-  ppg <- dataShooters[order(-dataShooters[,q]),q][1]
-  ppg <- format(round(ppg, digits = 1), nsmall = 1)
-  xPlot <- median(subset(shotsTrans, shotQuadrant == quadrants[q])$baseline)
-  yPlot <- median(subset(shotsTrans, shotQuadrant == quadrants[q])$depth)
-  print(c(colnames(dataShooters)[q],
-          rownames(dataShooters[order(-dataShooters[,q]),])[1],
-          dataShooters[order(-dataShooters[,q]),q][1],
-          xPlot,
-          yPlot))
-  bestScorerPlot <- bestScorerPlot + geom_text(x = xPlot, y = yPlot, label = player, alpha = .02, color = "blue", angle = 20)
-  bestScorerPlot <- bestScorerPlot + geom_text(x = xPlot, y = yPlot + 2, label = ppg, alpha = .01, color = "black", angle = 20)
-}
-
-bestScorerPlot
-
-ggsave("plots/bestScorer_secondAttempt_day2.png")
-
-ggplot(bestScorer, aes(baseline, depth)) + 
-  ylim(0,40)  + xlim(0,50) + 
-  geom_text(aes(x = xPlot, y = yPlot + 1, label = shooter), angle = 20) +
-  geom_text(aes(x = xPlot, y = yPlot - 1, label = plotPPG), angle = 20) +
-  geom_polygon(data = court[court$side==1,], aes(x = x, y = y, group = group), col = "gray") +
-  coord_equal() +
-  xlim(-3,54) +
-  ylim(-3,50) +
-  scale_y_continuous(breaks = c(0, 23.5, 47)) +
-  scale_x_continuous(breaks = c(0, 12.5, 25, 37.5, 50)) +
-  xlab("") + ylab("") +
-  theme(axis.text.x = element_blank(),
-        axis.text.y = element_blank(), axis.ticks.x = element_blank(),
-        axis.ticks.y = element_blank(), axis.title = element_blank())
-
-ggsave("plots/bestScorer_thirdAttempt.png")
+bestScorer$yPlot <- yPos
+bestScorer$xPlot <- xPos
 
 #add logo
 #add color in the form of efficiency (number color?)
+
+ggplot() + 
+  ylim(0,40)  + xlim(0,50) + 
+  geom_polygon(data = court[court$side==1,], aes(x = x, y = y, group = group), col = "gray") +
+  coord_equal() +
+  xlim(-3,54) +
+  ylim(-3,50) +
+  scale_y_continuous(breaks = c(0, 23.5, 47)) +
+  scale_x_continuous(breaks = c(0, 12.5, 25, 37.5, 50)) +
+  geom_point(data = shotsScorer, 
+             aes(x = baseline, y = depth, col = zoneEff), size = 2.4, pch = 15, alpha = .5) +
+  geom_text(data = bestScorer, 
+            aes(x = xPlot, y = yPlot + 1, label = shooter), alpha = 1, size = 4) +
+  geom_image(data = bestScorer, 
+             aes(x = xPlot, y = yPlot + 3, image = logo), size = .05, alpha= 1) +
+  #scale_color_gradient2(midpoint=mean(bestScorer$shooterEfficiency), low="#560DFF", 
+  #                      mid="#D800FF", high="#FF0D50") +
+  scale_color_gradientn(colours = terrain.colors(12)[10:1]) +
+  #scale_color_gradientn(colors = colorInterpolate(1:6,1:6)) +
+  xlab("test") + ylab("") + ggtitle("Leading College Scorer by Zone", subtitle = "(High-Major, Min 3 games charted, 20 shots taken)") +
+  theme(axis.text.x = element_blank(), axis.text.y = element_blank(), axis.ticks.x = element_blank(),
+        axis.ticks.y = element_blank(), axis.title = element_blank(), panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), text = element_text(size = 12, family = "Arial"), 
+        plot.title = element_text(size=20), plot.subtitle = element_text(size=10))
+
+ggsave("plots/bestScorer_final.png", height = 7, width = 7)
 
 ```
